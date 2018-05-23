@@ -32,19 +32,18 @@ column(width = 5,
          )
        )))
 panel.apply <-
-  fluidPage(
-    actionButton("apply", label = "Show +/- 17 bp"),
-    em(textOutput("inputlength"), style = "color:grey"))
+  fluidPage(actionButton("apply", label = "Show +/- 17 bp"),
+            em(textOutput("inputlength"), style = "color:grey"))
 # Select CASTLING moduls
 panel.moduls <- fluidRow(column(
   width = 5,
   fluidPage(
-    em("Select CASTLING moduls:"),
-    radioButtons(
-      "inp_moduls",
-      label = NULL,
-      choices = c("All from publication", "Subset from publication")
-    ),
+    # em("Select CASTLING moduls:"),
+    # radioButtons(
+    #   "inp_moduls",
+    #   label = NULL,
+    #   choices = c("All from publication", "Subset from publication")
+    # ),
     em("Select target species:"),
     radioButtons(
       "inp_species",
@@ -67,18 +66,18 @@ max_char = 203
 # Define UI ----
 ui <-
   fixedPage(
-    tags$head(
-      
-      tags$script(
-        HTML("
-             Shiny.addCustomMessageHandler('jsCode',
-             function(message) {
-             console.log(message)
-             eval(message.code);
-             }
-             );
-             "))
-      ),
+    tags$head(tags$script(
+      HTML(
+        "
+        Shiny.addCustomMessageHandler('jsCode',
+        function(message) {
+        console.log(message)
+        eval(message.code);
+        }
+        );
+        "
+      )
+    )),
     strong("Primer Design Tool for CASTLING in mammalian cells"),
     panel.target,
     panel.apply,
@@ -89,7 +88,7 @@ ui <-
     tableOutput("cpf"),
     textOutput("beforeconeprimer"),
     textOutput("coneprimer")
-  )
+    )
 # Define server logic ----
 server <- function(input, output, session)
 {
@@ -100,16 +99,17 @@ server <- function(input, output, session)
                                                       )))
   }
   enableActionButton <- function(id, session) {
-    
-    session$sendCustomMessage(type = "jsCode", list(code = 
-                                                      paste0("$('#", id, "').prop('disabled', false)")))
+    session$sendCustomMessage(type = "jsCode", list(code =
+                                                      paste0(
+                                                        "$('#", id, "').prop('disabled', false)"
+                                                      )))
     
   }
   # find possible PAM-sequences 17 bp around the stop codon depending on the Cpf1 chosen
   length_nts <- 100
   aroundpam <-
     function(targetinput) {
-      (DNAString(targetinput))[(length_nts-16):(length_nts+3+17)]
+      (DNAString(targetinput))[(length_nts - 16):(length_nts + 3 + 17)]
     }
   # Target sequence
   # output$inp_target_text <- reactive({ paste0('Only ', max_char-nchar(input$inp_target), ' characters remaining.' ) })
@@ -137,21 +137,25 @@ server <- function(input, output, session)
     if (nchar(input$inp_target) < 203) {
       disableActionButton("compute", session)
       disableActionButton("apply", session)
-      output$inputlength <- renderText({"Please provide a sequence of 203 nts!"
-      })
+      output$inputlength <-
+        renderText({
+          "Please provide a sequence of 203 nts!"
+        })
       #rv$data <- print("Please provide a nucleotid sequence!")
-    } else if
-      (all(strsplit(input$inp_target, "")[[1]] %in% DNA_ALPHABET)) {
-    enableActionButton("compute", session)
-    enableActionButton("apply", session)
-    output$inputlength <- renderText({""
-    })
+    } else if (all(strsplit(input$inp_target, "")[[1]] %in% DNA_ALPHABET)) {
+      enableActionButton("compute", session)
+      enableActionButton("apply", session)
+      output$inputlength <- renderText({
+        ""
+      })
     } else {
       disableActionButton("compute", session)
       disableActionButton("apply", session)
-      output$inputlength <- renderText({"Please provide a nucleotid sequence!"
-      })
-      }
+      output$inputlength <-
+        renderText({
+          "Please provide a nucleotid sequence!"
+        })
+    }
   })
   nts <- eventReactive(input$inp_target, {
     targetnts <- DNAString(input$inp_target)
@@ -174,7 +178,7 @@ server <- function(input, output, session)
   mbpams <- NULL
   rvc <- reactiveValues(data = NULL)
   rv <- reactiveValues(data = NULL)
- rvp <- reactiveValues(data = NULL)
+  rvp <- reactiveValues(data = NULL)
   observeEvent(input$inp_cpf, {
     rvc$data <- input$inp_cpf
   })
@@ -216,12 +220,13 @@ server <- function(input, output, session)
       allpam_single <- allpamm[single]
       # rank sites according to proximity to stop
       sortedallpam <-
-        allpam_single[order(abs((length(ntspam()) - 3) / 2 - allpam_single@ranges@start)), ]
+        allpam_single[order(abs((length(ntspam(
+        )) - 3) / 2 - allpam_single@ranges@start)),]
       # compute gRNAs for the 5 best PAM-sites
-      if (length(sortedallpam) < 20) {
+      if (length(sortedallpam) < 5) {
         pamnumber <- length(sortedallpam)
       } else {
-        pamnumber <- 20
+        pamnumber <- 5
       }
       grnas <- rep("grna", times = pamnumber)
       dim(grnas) <- c(pamnumber, 1)
@@ -230,15 +235,22 @@ server <- function(input, output, session)
         targetstart <-
           sortedallpam@ranges@start[i] + length(sortedallpam[[i]])
         grnas[i] <-
-          as.character(complement(nts()[(targetstart+100-17):(targetstart + 19+100-17)]))
+          as.character(complement(nts()[(targetstart + 100 - 17):(targetstart + 19 +
+                                                                    100 - 17)]))
       }
       summary <-
         matrix(rep(0, len = pamnumber * 5), nrow = pamnumber)
-      colnames(summary) <- c("Rank", "Cpf1", "PAM", "gRNA", "C2-primer")
+      colnames(summary) <-
+        c("Rank",
+          "Cpf1",
+          "PAM",
+          "gRNA-coding sequence",
+          "C2-primer")
       summary = as.data.frame(summary)
       for (i in (1:pamnumber)) {
         summary$PAM[i] <- as.character(sortedallpam[[i]])
-        summary$`C2-primer`[i] <- paste("handle",grnas[i], "TTTTTT", as.character(nts()[104:163]), sep = "")
+        summary$`C2-primer`[i] <-
+          paste("grnahandle", grnas[i], "TTTTTT", as.character(nts()[104:163]), sep = "")
       }
       for (i in (1:pamnumber)) {
         if (length(DNAString("TTV")) == sortedallpam@ranges@width[i] &
@@ -315,7 +327,7 @@ server <- function(input, output, session)
         }
       }
       for (i in (1:pamnumber)) {
-        summary$gRNA[i] <- grnas[i]
+        summary$`gRNA-coding sequence`[i] <- grnas[i]
       }
       for (i in (1:pamnumber)) {
         summary$Rank[i] <- as.character(i)
@@ -324,8 +336,11 @@ server <- function(input, output, session)
     }
   })
   output$cpf <- renderTable({
-    validate(need(input$inp_cpf != "", 'Please provide a nucleotid sequence!'))
-        validate(need(input$inp_cpf != "", 'Select at least one Cpf1 variant!'))
+    validate(need(
+      input$inp_target != "",
+      'Please provide a nucleotid sequence!'
+    ))
+    validate(need(input$inp_cpf != "", 'Select at least one Cpf1 variant!'))
     rv$data
   })
   output$nucleotides <- renderText({
@@ -336,13 +351,14 @@ server <- function(input, output, session)
     })
   })
   coneprimer <- eventReactive(input$inp_target, {
-    cone <- as.character(xscat(complement(nts()[11:100]), complement(DNAString("SGGGGSGGGGS"))))
+    cone <-
+      as.character(xscat(complement(nts()[11:100]), complement(DNAString("SGGGGSGGGGS"))))
     return(cone)
   })
   observeEvent(input$compute, {
-rvp$data <- paste("C1-primer:", as.character(coneprimer()))
-})
-    output$coneprimer <- renderText({
+    rvp$data <- paste("C1-primer:", as.character(coneprimer()))
+  })
+  output$coneprimer <- renderText({
     validate(need(input$inp_target != "", ''))
     validate(need(input$inp_cpf != "", ''))
     rvp$data

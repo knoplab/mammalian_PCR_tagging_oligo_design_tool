@@ -1,8 +1,8 @@
 require(Biostrings)
-nts <- paste(sample(DNA_ALPHABET[1:4], size = 203, replace = T))
-nts[101] <- "T"
-nts[102] <- "A"
-nts[103] <- "A"
+# nts <- paste(sample(DNA_ALPHABET[1:4], size = 203, replace = T))
+# nts[101] <- "T"
+# nts[102] <- "A"
+# nts[103] <- "A"
 # # nts - create random single nucleotid sequence (100-100 nts upstream and downstream from the STOP-codon)
 # nts <- paste(nts, collapse = "")
 # nts <- DNAString(nts)
@@ -66,11 +66,11 @@ for (i in (1:pamnumber)) {
 }
 grnas
 summary <-matrix(rep(0, len = pamnumber*5), nrow = pamnumber)
-colnames(summary) <- c("Rank", "Cpf1", "PAM", "gRNA", "C2-primer")
+colnames(summary) <- c("Rank", "Cpf1", "PAM", "gRNA-coding sequence", "C2-primer")
 summary = as.data.frame(summary)
 for (i in (1:pamnumber)) {
     summary$PAM[i] <- as.character(sortedallpam[[i]])
-    summary$`C2-primer`[i] <- paste("handle",grnas[i], "TTTTTT", as.character(nts[104:163]), sep = "")
+    summary$`C2-primer`[i] <- paste("grnahandle",grnas[i], "TTTTTT", as.character(nts[104:163]), sep = "")
 }
 for (i in (1:pamnumber)) {
   if (length(DNAString("TTV")) == sortedallpam@ranges@width[i] &
@@ -130,7 +130,7 @@ for (i in (1:pamnumber)) {
   }
 }
 for (i in (1:pamnumber)) {
-  summary$gRNA[i] <- grnas[i]
+  summary$`gRNA-coding sequence`[i] <- grnas[i]
 }
 for (i in (1:pamnumber)) {
   summary$Rank[i] <- as.character(i)
