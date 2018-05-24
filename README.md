@@ -1,1 +1,1 @@
-# CASTLING_m_primer_tool
+# mammalian_PCR_targeting_primer_tool
