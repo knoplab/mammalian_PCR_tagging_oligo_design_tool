@@ -57,7 +57,22 @@ panel.target <- fluidRow(fluidPage(
     ),
     # div(style="width:300px;",
     #     fluidPage()),
-    fluidPage(column(
+    fluidPage
+    (column(
+      width = 6,
+      h4("Gene name")
+    ),
+      column(
+        width = 1,
+        textInput(
+          "genename",
+          label = NULL,
+          width = 100,
+          value = "GENE"
+        )
+      )),
+    fluidPage
+    (column(
       width = 6,
       h4("Number of nucleotides before the stop codon (min. 90):")
     ),
@@ -68,7 +83,7 @@ panel.target <- fluidRow(fluidPage(
         label = NULL,
         value = 100,
         min = 90,
-        width = 65
+        width = 100
       )
     )),
     fluidPage(column(
@@ -82,7 +97,7 @@ panel.target <- fluidRow(fluidPage(
         label = NULL,
         value = 100,
         min = 60,
-        width = 65
+        width = 100
       )
     )),
     fluidPage(column(
@@ -99,7 +114,7 @@ panel.target <- fluidRow(fluidPage(
         value = 17,
         min = 3,
         max = 20,
-        width = 65
+        width = 100
       )
     )),
     fluidPage(column(
@@ -116,7 +131,7 @@ panel.target <- fluidRow(fluidPage(
         value = 17,
         min = 3,
         max = 50,
-        width = 65
+        width = 100
       )
     ))
   )
@@ -223,6 +238,8 @@ ui <-
     br(),
     panel.compute,
     br(),
+    br(),
+    htmlOutput("forwardtitle"),
     br(),
     htmlOutput("forwardoligo"),
     br(),
@@ -431,6 +448,8 @@ server <- function(input, output, session)
         rv <- reactiveValues(data = NULL)
         rvp <- reactiveValues(data = NULL)
         rvo <- reactiveValues(data = NULL)
+        rvg <- reactiveValues(data = NULL)
+        rvg$data <- input$genename
         observe({
           if ("Other, please specify PAM and gRNA-handle:" %in% input$inp_cpf) {
             observe({
@@ -652,14 +671,15 @@ server <- function(input, output, session)
               }
             }
             summary <-
-              matrix(rep(0, len = pamnumber * 6), nrow = pamnumber)
+              matrix(rep(0, len = pamnumber * 7), nrow = pamnumber)
             colnames(summary) <-
               c("Rank",
+                "Suggested oligo name",
+                "Reverse oligo sequence",
                 "Cpf1",
                 "PAM",
                 "Strand",
-                "gRNA (handle + 20 nts spacer)",
-                "Reverse oligo")
+                "gRNA (handle + 20 nts spacer)")
             summary = as.data.frame(summary)
             for (i in (1:pamnumber)) {
               if (nchar("TTTV") == sortedallpam$width[i] &
@@ -737,7 +757,8 @@ server <- function(input, output, session)
                 as.character(sortedallpam$strand[i])
               summary$`gRNA (handle + 20 nts spacer)`[i] <- paste('<span style = "color:red">', as.character(grnahandle[i]), '</span>',
                                                                   '<span style = "color:blue">', gsub("T", "U", reverseComplement(DNAString(grnas[i]))), '</span>', sep = "")
-              summary$`Reverse oligo`[i] <-
+              summary$`Suggested oligo name`[i] <- paste("Mt2_", rvg$data, "_", summary$Cpf[i], "_", summary$PAM[i],  sep = "")
+              summary$`Reverse oligo sequence`[i] <-
                 paste('<span style = "color:green">', as.character(reverseComplement(DNAString(targetseq())[(input$beforestop + 4):(input$beforestop + 4 + 54)])), '</span>',
                   '<span style = "color:orange">', "AAAAAA", '</span>',
                   '<span style = "color:blue">', grnas[i], '</span>',
@@ -750,7 +771,7 @@ server <- function(input, output, session)
               csvoutput$Strand[i] <-
                 as.character(sortedallpam$strand[i])
               csvoutput$`gRNA (handle + 20 nts spacer)`[i] <- paste(as.character(grnahandle[i]), gsub("T", "U", reverseComplement(DNAString(grnas[i]))), sep = "")
-              csvoutput$`Reverse oligo`[i] <-
+              csvoutput$`Reverse oligo sequence`[i] <-
                 paste(as.character(reverseComplement(DNAString(targetseq())[(input$beforestop + 4):(input$beforestop + 4 + 54)])),
                       "AAAAAA",
                       grnas[i],
@@ -763,13 +784,14 @@ server <- function(input, output, session)
             colnames(summary)[colnames(summary) == "gRNA (handle + 20 nts spacer)"] <- paste("gRNA (", '<span style = "color:red">', "handle", '</span>', "+", '<span style = "color:blue">', "20 nts spacer", '</span>', ")")
             rv$data <- summary
             csvoutput[nrow(csvoutput) + 1,] <-
-              c("", "", "", "", "", "")
+              c("", "", "", "", "", "", "")
             csvoutput[nrow(csvoutput) + 1,] <-
               c("",
                 "",
                 "",
                 "",
                 "Forward oligo:",
+                paste("Suggested oligo name: Mt1_", rvg$data),
                 as.character(forwardoligo()))
             rvo$data <- csvoutput
             enable("downloadData")
@@ -797,7 +819,7 @@ server <- function(input, output, session)
               validate(need(nchar(input$inp_pam) > 2, ''))
               validate(need(nchar(input$inp_handle) > 5, ''))
               rvp$data
-            }, sanitize.text.function = function(x) x)
+            })
           } else if ("Other, please specify PAM and gRNA-handle:" %ni% input$inp_cpf) {
             output$cpf <- renderTable({
               validate(need(
@@ -818,8 +840,12 @@ server <- function(input, output, session)
           }
         })
         observeEvent(input$compute, {
-          rvp$data <- paste(strong("Forward oligo:"), as.character(forwardoligo()))
-        })
+          output$forwardtitle <- renderText({
+            paste(strong("Forward oligo:"), '<span style = "color:brown">', "5'-homology (90 bases before the stop-codon, direct orientation)", '</span>', "+ primer binding forward oligo, suggested oligo name: Mt1_", rvg$data)
+          })
+            rvp$data <-  paste('<span style = "color:brown">', as.character(DNAString(targetseq())[(input$beforestop - 89):input$beforestop]), '</span>', "TCAGGTGGAGGAGGTAGTG", sep = "")
+           # paste(strong("Forward oligo:"), "5'-homology (90 bases before the stop-codon, direct orientation)", as.character(forwardoligo()), sep = "\n")
+          })
         # observeEvent(input$compute, {
         #   enable("downloadData")
         # })
