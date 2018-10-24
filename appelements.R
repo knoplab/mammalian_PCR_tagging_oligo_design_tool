@@ -1,60 +1,61 @@
-# General server elements
-'%ni%' <- Negate('%in%')
+# General server elements - titles, comments, warnings, urls
 endonucleases <- data.frame(
-  Name    = c("LbCpf1",
-              "LbCpf1",
-              "LbCpf1",
-              "AsCpf1",
-              "AsCpf1"),
+  Name    = c("LbCas12a",
+              "LbCas12a",
+              "LbCas12a",
+              "AsCas12a",
+              "AsCas12a"),
   `PAM` = c("TTTV", "TYCV", "MCCC", "TATV", "RATR"),
-  Handle  = c(
+  `Direct repeat`  = c(
     "UAAUUUCUACUAAGUGUAGAU",
-    # LbCpf1
+    # LbCas12a
     "UAAUUUCUACUAAGUGUAGAU",
-    # LbCpf1
+    # LbCas12a
     "UAAUUUCUACUAAGUGUAGAU",
-    # LbCpf1
+    # LbCas12a
     "UAAUUUCUACUCUUGUAGAU",
-    # AsCpf1
-    "UAAUUUCUACUCUUGUAGAU"  
+    # AsCas12a
+    "UAAUUUCUACUCUUGUAGAU"
   ),
   stringsAsFactors = F
 )
-handletable <- data.frame(
-  Name    = c("LbCpf1",
-              "AsCpf1"),
-  `gRNA_handle`  = c("UAAUUUCUACUAAGUGUAGAU",
-                     # LbCpf1
-                     "UAAUUUCUACUCUUGUAGAU"  
-  ),
+drtable <- data.frame(
+  Name    = c("LbCas12a",
+              "AsCas12a"),
+  `crRNA_dr`  = c("UAAUUUCUACUAAGUGUAGAU",
+                  # LbCas12a
+                  "UAAUUUCUACUCUUGUAGAU"),
   stringsAsFactors = F
 )
-# output$endo <- renderTable({
-#   handletable
-# })
-#output$pcrmixtable <- renderTable({pcrmix})
-#output$pcrtable <- renderTable({pcr})
-urlhandle <-
-  a("Direct repeat sequences of Cpf1 orthologs",
+urldr <-
+  a(
+    "Direct repeat sequences of Cas12a (Cpf1) orthologs",
     href = "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4638220/",
-    target = "_blank")
+    target = "_blank"
+  )
 urliupac <-
   a("Please use IUPAC Codes for Nucleotides.",
     href = "https://www.bioinformatics.org/sms/iupac.html",
     target = "_blank")
-####
-regiontext <- 
-  paste(h4(em("Search space for PAM sites around the insertion site (stop codon):")),
-        h5(em(
-          "17 nucleotides upstream on the direct strand and 17 nucleotides downstream on the reverse strand"
-        ), style = "color:MediumAquaMarine"), sep = '\n')
-stopwarning <- "Warning! The insertion site (marked in bold) is not a stop codon."
-#### Column names - summary
-sumgrna <- paste(
+regiontext <-
+  paste(h4(em("Search space for PAM sites:")),
+        h5(
+          em(
+            "17 nucleotides upstream on the direct strand and 17 nucleotides downstream on the reverse strand"
+          ),
+          style = "color:MediumAquaMarine"
+        ), sep = '\n')
+stopwarning <-
+  paste0('<br>',
+         '<br>',
+         "Warning! The insertion site (marked in red) is not a stop codon.",
+         '<br>')
+# crRNA header
+sumcrRNA <- paste(
   '<span style = "font-weight:bold; font-family: Arial">',
-  "gRNA (",
-  '<span style = "color:orange">',
-  "Cpf1-variant-specific handle",
+  "crRNA (",
+  '<span style = "text-decoration: underline; color:orange">',
+  "Cas12a (Cpf1)-variant-specific direct repeat",
   '</span>',
   " + ",
   '<span style = "color:orange">',
@@ -64,6 +65,7 @@ sumgrna <- paste(
   '</span>',
   sep = ""
 )
+# Target sequence header - 17 nt search space
 sumrtarget <-                 paste0(
   '<span style = "font-weight:bold; font-family: Arial">',
   "Target direct and reverse strand with ",
@@ -75,14 +77,16 @@ sumrtarget <-                 paste0(
   "target",
   '</span>',
   ", ",
+  '<br>',
   '<sup>&#9660;</sup>',
   '<sub>&#9650;</sub>',
-  '<br>',
-  " Cpf1 cleavage sites, ",
+  " Cas12a (Cpf1) cleavage sites, ",
   '<span style = "text-decoration: underline">',
   "overhangs",
   '</span>',
-  '</span>')
+  '</span>'
+)
+# Target sequence header - extended search space
 sumetarget <- paste0(
   '<span style = "font-weight:bold; font-family: Arial">',
   "Target direct and reverse strand with ",
@@ -96,76 +100,135 @@ sumetarget <- paste0(
   ", ",
   '<sup>&#9660;</sup>',
   '<sub>&#9650;</sub>',
-  '<br>',
-  " Cpf1 cleavage sites, ",
+  " Cas12a (Cpf1) cleavage sites, ",
   '<span style = "text-decoration: underline">',
   "overhangs",
   '</span>',
-  '</span>')
-colcsvf <- c(
-  "Forward oligo - Suggested name",
-  "Sequence",
-  "Length",
-  "",
-  "",
-  "",
-  "",
-  ""
+  '</span>'
 )
+# Column names, forward oligo - download table
+colcsvf <- c("Forward oligo - Suggested name",
+             "Sequence",
+             "Length",
+             "",
+             "",
+             "",
+             "",
+             "")
+# Column names - download table
 colsum <-               c(
-  #"Distance",
   "Suggested name",
   "Sequence",
   "Length",
-  "Cpf1",
-  "PAM",
-  "Strand",
-  "gRNA (handle + spacer)",
   "Rank",
-  "Target"
+  "Target",
+  "crRNA (direct repeat + spacer)",
+  "Cas12a (Cpf1)",
+  "PAM",
+  "Strand"
 )
+# Column names, forward oligo - download table
 colsumf <-               c("Suggested name",
                            "Sequence",
                            "Length")
-#####
+##### Titles and comments
 monetitle <- paste0(
-  '<span style = "font-weight:bold; font-family: Arial; font-size: 24px; color:green">', "M1-oligo ",
+  '<br>',
+  '<br>',
+  '<span style = "font-weight:bold; font-family: Arial; font-size: 24px; color:green">',
+  "M1-oligo ",
   '</span>',
-  '<span style = "font-weight:bold; font-family: Arial; font-size: 24px">', "(one forward oligo)",
+  '<span style = "font-weight:bold; font-family: Arial; font-size: 24px">',
+  "(one forward oligo)",
   '</span>'
 )
 monedescr <- paste0(
-  '<span style = "font-style:italic; font-family: Arial; font-size: 18px; color:MediumBlue">', "Only one M1-oligo is generated, since this oligo is independent from the PAM sites or Cpf1 variants.",
+  '<br>',
+  '<span style = "font-style:italic; font-family: Arial; font-size: 18px; color:MediumBlue">',
+  "Only one M1-oligo is generated, since this oligo is independent from the PAM sites or Cas12a (Cpf1) variants.",
+  '<br>',
+  '<br>',
+  '<br>',
   '</span>'
 )
 mtwotitle <- paste0(
-  '<span style = "font-weight:bold; font-family: Arial; font-size: 24px; color:CornflowerBlue ">', "M2-oligo(s) ",
+  '<br>',
+  '<br>',
+  '<span style = "font-weight:bold; font-family: Arial; font-size: 24px; color:CornflowerBlue ">',
+  "M2-oligo(s) ",
   '</span>',
-  '<span style = "font-weight:bold; font-family: Arial; font-size: 24px">', "(one or more reverse oligos)",
+  '<span style = "font-weight:bold; font-family: Arial; font-size: 24px">',
+  "(one or more reverse oligos)",
   '</span>'
 )
 mtwodescr <- paste0(
-  '<span style = "font-style:italic; font-family: Arial; font-size: 18px; color:MediumBlue">', "Zero, one or multiple M2-oligos are generated, since the oligos depend on the PAM sites and Cpf1 variants.",
+  '<br>',
+  '<span style = "font-style:italic; font-family: Arial; font-size: 18px; color:MediumBlue">',
+  "Zero, one or multiple M2-oligos are generated, since the oligos depend on the PAM sites and Cas12a (Cpf1) variants.",
+  '<br>',
+  '<br>',
+  '<br>',
   '</span>'
 )
 mtwoext <- paste0(
-  '<span style = "font-style:italic; font-family: Arial; font-size: 18px; color:MediumBlue">', "If zero oligos are predicted, please continue by selecting extended search space below, which will widen the region to search for suitable PAM sites in the 3", "\u0027", "UTR of the gene. The homology arm of the M2 oligo is adjusted in such a manner that the binding site of the guide RNA is deleted. Since this is in the 3", "\u0027", "UTR of the gene after the insertion site of the cassette, we deem this to be non-critical.",
-  '</span>')
+  '<br>',
+  '<span style = "font-style:italic; font-family: Arial; font-size: 18px; color:MediumBlue">',
+  "Please continue by selecting extended search space below, which will widen the region to search for suitable PAM sites in the 3",
+  "\u0027",
+  "UTR of the gene. In this case the homology arm of the M2 oligo is adjusted in such a manner that the binding site of the guide RNA is deleted. Since this is in the 3",
+  "\u0027",
+  "UTR of the gene after the insertion site of the cassette, we deem this to be non-critical.",
+  '<br>',
+  '<br>',
+  '<br>',
+  '<br>',
+  '</span>'
+)
 mtwoextb <- paste0(
-  '<span style = "font-style:italic; font-family: Arial; font-size: 18px; color:MediumBlue">', "If you continue by selecting extended search space below, this will widen the region to search for suitable PAM sites in the 3", "\u0027", "UTR of the gene. The homology arm of the M2 oligo is adjusted in such a manner that the binding site of the guide RNA is deleted. Since this is in the 3", "\u0027", "UTR of the gene after the insertion site of the cassette, we deem this to be non-critical.",
-  '</span>')
-nextstep <- paste0('<span style = "font-style:italic; font-family: Arial; font-size: 18px; color:MediumBlue">', "If still zero oligos are predicted, you are interested in one of the rare genes without a PAM site nearby (< 0.5%). Go ahead and keep on increasing the search space, or watch out for new Cpf1 variants (STEP 3).
-                                                        ", '</span>' )
-mtwocomment <- paste0('<span style = "font-style:italic; font-family: Arial; font-size: 18px; color:MediumAquaMarine">', "No PAM sites found in the confined search space.", '</span>')
+  '<span style = "font-style:italic; font-family: Arial; font-size: 18px; color:MediumBlue">',
+  "The use of oligos marked with an * is not recommended, as they can lead to decreased tag efficiency. If you continue by selecting extended search space below, this will widen the region to search for suitable PAM sites in the 3",
+  "\u0027",
+  "UTR of the gene. The homology arm of the M2 oligo is adjusted in such a manner that the binding site of the guide RNA is deleted. Since this is in the 3",
+  "\u0027",
+  "UTR of the gene after the insertion site of the cassette, we deem this to be non-critical.",
+  '<br>',
+  '<br>',
+  '</span>'
+)
+nextstep <-
+  paste0(
+    '<span style = "font-style:italic; font-family: Arial; font-size: 18px; color:MediumBlue">',
+    "If still zero oligos are predicted, you are interested in one of the rare genes without a PAM site nearby (< 0.5%). Go ahead and keep on increasing the search space, or watch out for new Cas12a (Cpf1) variants (STEP 3).
+    ",
+    '<br>',
+    '<br>',
+    '<br>',
+    '<br>',
+    '</span>'
+  )
+mtwocomment <-
+  paste0(
+    '<br>',
+    '<span style = "font-style:italic; font-family: Arial; font-size: 18px; color:MediumAquaMarine">',
+    "No PAM sites found in the +/- 17 nt search space.",
+    '<br>',
+    '<br>',
+    '</span>'
+  )
 mtwocommenterank <- paste0(
-  '<span style = "font-style:italic; font-family: Arial; font-size: 18px; color:MediumBlue">', "M2-oligos are ranked according to the following criteria:", 
+  '<br>',
+  '<span style = "font-style:italic; font-family: Arial; font-size: 18px; color:MediumBlue">',
+  "M2-oligos are ranked according to the following criteria:",
   '<br>',
   '<br>',
   tags$ol(
-    tags$li("no potential Pol III terminator encoded in the oligo (reverse oligos containing 4 or more A-s in the gRNA encoding sequence are marked with an *)"),
-    tags$li("conventional PAM sites preferred against MCCC or RATR"),
-    tags$li("cleavage site proximity to STOP codon"),
+    tags$li(
+      "no potential Pol III terminator encoded in the oligo (reverse oligos containing 4 or more A-s in the crRNA encoding sequence are marked with an * - these are not recommended for gene tagging)"
+    ),
+    tags$li("quality of PAM site"),
+    tags$li("position of Cas12a cleavage site compared to STOP codon"),
     tags$li("(coming soon: potential off-targets)")
   ),
+  '<br>',
   '</span>'
 )
