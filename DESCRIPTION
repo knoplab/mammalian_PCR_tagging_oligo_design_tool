@@ -1,0 +1,15 @@
+Package: mammalian_PCR_tagging_oligo_design_tool
+Title: Oligo Design Tool for Mammalian PCR Tagging
+Version: 0.0.1.0000
+Author@R: c(
+	person("Gubicza", "Krisztina", 
+	email = "k.gubicza@zmbh.uni-heidelberg.de", role = c("aut", "cre"))
+	)
+Description: The Oligo Design Tool for Mammalian PCR tagging enables the rapid design of M1 and M2 tagging oligos.
+Depends: R (>= 3.4.4)
+License: GPL (>= 3)
+Encoding: UTF-8
+Imports: 
+    Biostrings (>= 2.46.0),
+	 shiny (>= 1.1.0),
+   shinyjs (>= 1.0)
