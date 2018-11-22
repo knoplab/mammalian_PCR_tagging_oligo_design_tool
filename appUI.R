@@ -1,7 +1,7 @@
-# In this file the Shiny UI elements of the Mammalian PCR targetin online tool are defined
+# In this file the Shiny UI elements of the Mammalian PCR tagging online tool are defined
 
 
-# What is PCR targeting?  --------------------------------------------------------------------
+# What is PCR tagging?  --------------------------------------------------------------------
 
 
 urlplasmid <-
@@ -20,14 +20,18 @@ knoplab <-
   a("www.knoplab.de",
     href = "http://www.knoplab.de",
     target = "_blank")
+biorxiv <- 
+  a("CRISPR/Cas12a-assisted PCR tagging of mammalian genes",
+    href = "https://www.biorxiv.org/content/early/2018/11/20/473876",
+    target = "_blank")
 panel.needed <-
   fluidPage(
-    h4("What do I need for PCR targeting?", style = "color:Crimson; font-weight:bold"),
+    h4("What do I need for PCR tagging?", style = "color:Crimson; font-weight:bold"),
     
     tags$ul(
       tags$li("the sequence of the target locus (e.g. your favorite gene)"),
       tags$li(
-        "two oligos (M1 and M2)",
+        "two tagging oligos (M1 and M2)",
         " \u2192 ",
         "design them with ",
         actionLink("whatlinktotool", "our oligo design tool")
@@ -35,7 +39,7 @@ panel.needed <-
       tags$li("two helper plasmids"),
       tags$ol(tags$li(
         tagList(
-          "a PCR template with the desired tag, list of cassettes available",
+          "a template plasmid with the desired tag, list of PCR cassettes available",
           actionLink("linktotemplates", "here")
         )
       ),
@@ -49,17 +53,17 @@ panel.needed <-
       )),
       tags$li(
         tagList(
-          "a suitable cell line - so far PCR targeting has been shown to work with these cell lines: HEK293T, HeLa, U2OS, RPE-1, mESCs, C2C12-1"
+          "a suitable cell line - so far PCR tagging has been shown to work with these cell lines: HEK293T, HeLa, U2OS, RPE-1, mESCs, C2C12-1"
         )
       )
     ),
     br(),
-    h4("How to perform PCR-targeting?", style = "color:Crimson; font-weight:bold"),
+    h4("How to perform PCR tagging?", style = "color:Crimson; font-weight:bold"),
     div(
       tags$ol(
         style = "list-style-type: upper-roman;",
-        tags$li("Design M1 and M2 oligos"),
-        tags$li("Order M1 and M2 oligos"),
+        tags$li("Design M1 and M2 tagging oligos"),
+        tags$li("Order M1 and M2 tagging oligos"),
         tags$li(
           "Run tagging PCR, protocol available",
           actionLink("linktopcr", "here")
@@ -72,24 +76,29 @@ panel.needed <-
   )
 
 panel.whatintro <- fluidPage(
-  h3(strong("See reference: F\u00fcller", em("et al."))),
+  br(),
+  h4("See reference:", br()),
+strong(h3(biorxiv)),
+h4("Julia Fueller, Matthias Meurer, Konrad Herbst, Krisztina Gubicza, Bahtiyar Kurtulmus, Julia D. Knopf,", br(),
+"Daniel Kirrmaier, Benjamin Buchmuller, Gislene Pereira, Marius K. Lemberg, Michael Knop", br(), br(),
+" doi: https://doi.org/10.1101/473876 "),
   br(),
   br(),
   fluidPage(
-    h4("What is PCR targeting?", style = "color:Crimson; font-weight:bold"),
+    h4("What is PCR tagging?", style = "color:Crimson; font-weight:bold"),
     tags$ul(
       tags$li(
-        "PCR targeting is a one-step procedure for chromosomal gene tagging in mammals"
+        "PCR tagging is a one-step procedure for chromosomal gene tagging in mammals"
       ),
       tags$li(
-        "PCR targeting enables the rapid creation of cell lines with targeted large chromosomal insertions, such as GFP"
+        "PCR tagging enables the rapid creation of cell lines with targeted large chromosomal insertions, such as GFP"
       )
     )
   ),
   br(),
   br(),
   fluidPage(
-    h4("How does PCR targeting work?", style = "color:Crimson; font-weight:bold"),
+    h4("How does PCR tagging work?", style = "color:Crimson; font-weight:bold"),
     tags$ul(
       tags$li(
         "a gene specific PCR cassette is transfected into the target cells together with a helper plasmid containing a Cas12a endonuclease"
@@ -105,11 +114,11 @@ panel.whatintro <- fluidPage(
     h4("How is the PCR cassette generated?", style = "color:Crimson; font-weight:bold"),
     tags$ul(
       tags$li(
-        "two gene specific oligos (M1 and M2) provide the homology arms (50 to 90 nts in length) for targeted integration by HDR"
+        "two gene specific tagging oligos (M1 and M2) provide the homology arms (50 to 90 nts in length) for targeted integration by HDR"
       ),
       tags$ul(
         tags$li(
-          "the M2 oligo additionally provides a protospacer sequence for the Cas12a endonuclease"
+          "the M2 tagging oligo additionally provides a protospacer sequence for the Cas12a endonuclease"
         )
       ),
       tags$li(
@@ -137,7 +146,7 @@ panel.whatintro <- fluidPage(
         "stimulated by the double strand break the linear tagging cassette is inserted into the genome by HDR"
       ),
       tags$li(
-        "the homology arm of the M1-oligo directs in frame fusion of the tag with the target ORF, leading to the expression of a tagged protein from the target locus"
+        "the homology arm of the M1 tagging oligo directs in frame fusion of the tag with the target ORF, leading to the expression of a tagged protein from the target locus"
       ),
       tags$li(
         "integration leads to destruction of the crRNA target site, thus preventing re-cleavage of the locus"
@@ -146,17 +155,21 @@ panel.whatintro <- fluidPage(
   )
 )
 panel.intro <- fluidPage(
-  h3("See reference: F\u00fcller", em("et al."),
-     br(),
-     br()),
+  br(),
+  h4("See reference:", br()),
+  strong(h3(biorxiv)),
+  h4("Julia Fueller, Matthias Meurer, Konrad Herbst, Krisztina Gubicza, Bahtiyar Kurtulmus, Julia D. Knopf,", br(),
+     "Daniel Kirrmaier, Benjamin Buchmuller, Gislene Pereira, Marius K. Lemberg, Michael Knop", br(), br(),
+     " doi: https://doi.org/10.1101/473876 "),
+  br(),
   fluidPage(
-    h4("What is PCR targeting?", style = "color:Crimson; font-weight:bold"),
+    h4("What is PCR tagging?", style = "color:Crimson; font-weight:bold"),
     tags$ul(
       tags$li(
-        "PCR targeting is a one-step procedure for chromosomal gene tagging in mammals"
+        "PCR tagging is a one-step procedure for chromosomal gene tagging in mammals"
       ),
       tags$li(
-        "PCR targeting enables the rapid creation of cell lines with targeted large chromosomal insertions, such as GFP"
+        "PCR tagging enables the rapid creation of cell lines with targeted large chromosomal insertions, such as GFP"
       )
     )
   ),
@@ -274,7 +287,7 @@ panel.moduls <-
       br(),
       h4(
         em(
-          "PCR targeting makes use of published Cas12a (Cpf1) plasmids available form Addgene."
+          "PCR tagging makes use of published Cas12a (Cpf1) plasmids available form Addgene."
         ),
         style = "color:MediumBlue"
       ),
@@ -295,27 +308,34 @@ panel.moduls <-
             "LbCpf1(TTTV) - <a href = 'https://www.addgene.org/69988/' target = '_blank'> Addgene: pY016</a>, direct repeat: UAAUUUCUACUAAGUGUAGAU"
           ),
           HTML(
-            "LbCpf1(TYCV) - <a href = 'https://www.addgene.org/89355/' target = '_blank'> Addgene: pY230</a>, direct repeat: UAAUUUCUACUAAGUGUAGAU"
+            "LbCpf1(TYCV) - <a href = 'https://www.addgene.org/89355/' target = '_blank'> Addgene: pY230</a>, also recognizes TYTV PAMs <a href = 'https://academic.oup.com/nar/advance-article/doi/10.1093/nar/gky815/5103950' target = '_blank'> (T\u00f3th et al. 2018)</a>, direct repeat: UAAUUUCUACUAAGUGUAGAU"
+          ),
+          HTML(
+            "AsCpf1(TTTV) - <a href = 'https://www.addgene.org/69982/' target = '_blank'> Addgene: pY010</a>, direct repeat: UAAUUUCUACUCUUGUAGAU"
           ),
           HTML(
             "AsCpf1(TATV) - <a href = 'https://www.addgene.org/89353/' target = '_blank'> Addgene: pY220</a>, also recognizes RATR and TTTV PAMs, direct repeat: UAAUUUCUACUCUUGUAGAU"
           ),
           HTML(
-            "AsCpf1(TYCV) - <a href = 'https://www.addgene.org/89351/' target = '_blank'> Addgene: pY210</a>, also recognizes MCCC PAMs, direct repeat: UAAUUUCUACUCUUGUAGAU"
+            "AsCpf1(TYCV) - <a href = 'https://www.addgene.org/89351/' target = '_blank'> Addgene: pY210</a>, also recognizes TTTV <a href = 'https://academic.oup.com/nar/advance-article/doi/10.1093/nar/gky815/5103950' target = '_blank'> (T\u00f3th et al. 2018)</a> and MCCC PAMs, direct repeat: UAAUUUCUACUCUUGUAGAU"
           ),
           "In case new Cpf1 variants with different PAM site specificities and different direct repeat sequences become available, you can enter these here:"
         ),
         choiceValues = c(
           "LbCpf1_TTTV",
           "LbCpf1_TYCV",
+          "AsCpf1_TTTV",
           "AsCpf1_TATV",
           "AsCpf1_TYCV",
           "Other"
         ),
-        selected = c("LbCpf1_TTTV",
-                     "LbCpf1_TYCV",
-                     "AsCpf1_TATV",
-                     "AsCpf1_TYCV")
+        selected = c(
+          "LbCpf1_TTTV",
+          "LbCpf1_TYCV",
+          "AsCpf1_TTTV",
+          "AsCpf1_TATV",
+          "AsCpf1_TYCV"
+        )
       ),
       
       bootstrapPage(
@@ -363,7 +383,10 @@ panel.region <-
       #htmlOutput("forwardoligo"),
       #tags$style(HTML('#forwardoligo th {font-family: "Arial"}')),
       h3(
-        strong("STEP 4: Define length of homology arms", style = "color:Crimson; font-weight:bold")
+        strong(
+          "STEP 4: Tagging oligos: define length of homology arms and modification",
+          style = "color:Crimson; font-weight:bold"
+        )
       ),
       br(),
       h4(
@@ -373,7 +396,9 @@ panel.region <-
         style = "color:MediumBlue"
       ),
       h4(
-        em("We recommend to use 90 nt for the M1 oligo and 55 nt for the M2 oligo."),
+        em(
+          "We recommend to use 90 nt for the M1 tagging oligo and 55 nt for the M2 tagging oligo."
+        ),
         style = "color:MediumBlue"
       ),
       h4(
@@ -384,8 +409,8 @@ panel.region <-
       ),
       br(),
       splitLayout(
-        cellWidths = c(300, 300),
-        h4("5'-homology arm for the M1 oligo:", style = "color:green"),
+        cellWidths = c(400, 200),
+        h4("5'-homology arm for the M1 tagging oligo:", style = "color:green"),
         numericInput(
           "fiveha",
           label = NULL,
@@ -396,8 +421,8 @@ panel.region <-
         )
       ),
       splitLayout(
-        cellWidths = c(300, 300),
-        h4("3'-homology arm for the M2 oligos:", style = "color:CornflowerBlue "),
+        cellWidths = c(400, 200),
+        h4("3'-homology arm for the M2 tagging oligos:", style = "color:CornflowerBlue "),
         numericInput(
           "threeha",
           label = NULL,
@@ -407,8 +432,25 @@ panel.region <-
           width = 100
         )
       ),
-      # sliderInput("slider1", label = NULL, min = 0,
-      #             max = 100, value = 55, width = '500px'),
+      h4(
+        checkboxInput(
+          "phospho",
+          "Tick this checkbox to incorporate phosphorothioate modification into the 5' end of the M1 and M2 tagging oligos."
+        )
+      ),
+      splitLayout(
+        cellWidths = c(300, 600),
+        h4(em("Number of phosphorothioate bonds:"),
+           style = "color:MediumBlue"),
+        sliderInput(
+          "phosphonum",
+          label = NULL,
+          min = 1,
+          max = 20,
+          value = 5,
+          width = '500px'
+        )
+      ),
       hr(),
       h3(
         strong("STEP 5: Compute oligo sequences", style = "color:Crimson; font-weight:bold")
@@ -422,7 +464,7 @@ panel.region <-
       ),
       h4(
         em(
-          "and generate the M1 and M2 oligos as outlined in the image on the right."
+          "and generate the M1 and M2 tagging oligos as outlined in the image on the right."
         ),
         style = "color:MediumBlue"
       ),
@@ -436,36 +478,36 @@ panel.region <-
   )
 panel.output <-
   fluidPage(
-    h3("RESULTS: Retrieve sequences of M1 and M2 oligos", style = "font-weight:bold; color:Crimson; font-weight:bold"),
+    h3("RESULTS: Retrieve sequences of M1 and M2 tagging oligos", style = "font-weight:bold; color:Crimson; font-weight:bold"),
     htmlOutput("monetitle"),
     htmlOutput("monedescr"),
     tags$style(HTML('#cpff {font-family: "Roboto Mono"}')),
     tags$style(HTML('#cpff th {font-family: "Arial"}')),
-    #tags$style(HTML('#cpff th:nth-child(2) {width: 1028px}')),
     tags$style(HTML('#cpff td:nth-child(2) {width: 1028px}')),
-    #tags$style(HTML('#cpff th:first-child {width: 200px}')),
     tags$style(HTML('#cpff td:first-child {width: 200px}')),
     htmlOutput("cpff"),
     htmlOutput("mtwotitle"),
     htmlOutput("mtwodescr"),
-    tags$style(HTML('#cpf {table-layout: fixed}')),
+    tags$style(HTML(
+      '#cpf {table-layout: fixed; width: 3000px}'
+    )),
     tags$style(HTML('#cpf {font-family: "Roboto Mono"}')),
-    tags$style(HTML('#cpf td {vertical-align: middle;}')),
-    tags$style(HTML('#cpf th {vertical-align: middle;}')),
-    tags$style(HTML('#cpf td {text-align: center;}')),
-    tags$style(HTML('#cpf th {text-align: center;}')),
     tags$style(HTML('#cpf th {font-family: "Arial"}')),
+    tags$style(HTML('#cpf th:nth-child(2) {width: 1028px}')),
+    tags$style(HTML('#cpf td:nth-child(2) {width: 1028px}')),
+    tags$style(HTML('#cpf td:first-child {width: 200px}')),
     tags$style(HTML(
       '#cpf td:nth-child(5) {border-left: 2px solid grey}'
     )),
     tags$style(HTML(
       '#cpf th:nth-child(5) {border-left: 2px solid grey}'
     )),
-    tags$style(HTML('#cpf th:first-child {width: 200px}')),
-    tags$style(HTML('#cpf td:first-child {width: 200px}')),
-    tags$style(HTML('#cpf td:nth-child(2) {width: 1028px}')),
-    #tags$style(HTML('#cpf th:nth-child(2) {width: 1028px}')),
+    tags$style(HTML(
+      '#cpf td:nth-child(7) {white-space:nowrap;}'
+    )),
     tags$style(HTML('#cpf tr:first-child td {border-top: 0}')),
+    tags$style(HTML('#cpf td {vertical-align: middle;}')),
+    tags$style(HTML('#cpf th {vertical-align: middle;}')),
     htmlOutput("cpf"),
     htmlOutput("mtwocomment")
   )
@@ -515,22 +557,27 @@ panel.extended <-
     htmlOutput("nucleotidesre", style = "font-size: 20px"),
     h4(htmlOutput("esearchspaceoligos")),
     h5(textOutput("stopwarninge"), style = "color:red"),
-    tags$style(HTML('#cpfe th {font-family: "Arial"}')),
-    tags$style(HTML('#cpfe th:first-child {width: 200px}')),
-    tags$style(HTML('#cpfe td:first-child {width: 200px}')),
-    tags$style(HTML('#cpfe th:nth-child(2) {width: 1000px}')),
-    tags$style(HTML('#cpfe td:nth-child(2) {width: 1000px}')),
+    tags$style(HTML(
+      '#cpfe {table-layout: fixed; width: 3500px}'
+    )),
     tags$style(HTML('#cpfe {font-family: "Roboto Mono"}')),
-    tags$style(HTML('#cpfe td {vertical-align: middle;}')),
-    tags$style(HTML('#cpfe th {vertical-align: middle;}')),
-    tags$style(HTML('#cpfe td {text-align: center;}')),
-    tags$style(HTML('#cpfe th {text-align: center;}')),
+    tags$style(HTML('#cpfe th {font-family: "Arial"}')),
+    tags$style(HTML('#cpfe th:nth-child(2) {width: 1028px}')),
+    tags$style(HTML('#cpfe td:nth-child(2) {width: 1028px}')),
+    tags$style(HTML('#cpfe td:first-child {width: 200px}')),
     tags$style(HTML(
       '#cpfe td:nth-child(5) {border-left: 2px solid grey}'
     )),
     tags$style(HTML(
       '#cpfe th:nth-child(5) {border-left: 2px solid grey}'
     )),
+    tags$style(HTML(
+      '#cpfe td:nth-child(7) {white-space:nowrap;}'
+    )),
+    tags$style(HTML('#cpfe tr:first-child td {border-top: 0}')),
+    tags$style(HTML('#cpfe td {vertical-align: middle;}')),
+    tags$style(HTML('#cpfe th {vertical-align: middle;}')),
+    br(),
     htmlOutput("cpfe"),
     htmlOutput("mtwocommente"),
     br()
@@ -547,81 +594,65 @@ panel.download <- fluidPage(
 
 
 urlr <-
-  a("www.R-project.org",
+  a(
+    "R Core Team (2018). R: A language and environment for statistical computing. R Foundation for Statistical Computing Vienna, Austria. ",
     href = "https://www.R-project.org/",
-    target = "_blank")
+    target = "_blank"
+  )
 urlshiny <-
-  a("www.CRAN.R-project.org/package=shiny",
+  a(
+    "Chang W, Cheng J, Allaire JJ, Xie Y, McPherson J (2018). shiny: Web Application Framework for R. R package version 1.1.0.",
     href = "https://CRAN.R-project.org/package=shiny",
-    target = "_blank")
+    target = "_blank"
+  )
 urlshinyjs <-
-  a("www.CRAN.R-project.org/package=shinyjs",
+  a(
+    "Dean Attali (2018). shinyjs: Easily Improve the User Experience of Your Shiny Apps in Seconds. R package version 1.0. ",
     href = "https://CRAN.R-project.org/package=shinyjs",
-    target = "_blank")
+    target = "_blank"
+  )
 urlbiostrings <-
   a(
-    "www.bioconductor.org/packages/release/bioc/html/Biostrings.html",
+    "Pages H, Aboyoun P, Gentleman R, DebRoy S (2017). Biostrings: Efficient manipulation of biological strings. R package version 2.46.0.",
     href = "https://bioconductor.org/packages/release/bioc/html/Biostrings.html",
+    target = "_blank"
+  )
+urltoth <-
+  a(
+    "T\u00f3th E et al. (2018). Mb- and FnCpf1 nucleases are active in mammalian cells: activities and PAM preferences of four wild-type Cpf1 nucleases and of their altered PAM specificity variants, Nucleic Acids Research, (i), pp. 1-14. doi: 10.1093/nar/gky815.",
+    href = "https://academic.oup.com/nar/advance-article/doi/10.1093/nar/gky815/5103950",
     target = "_blank"
   )
 panel.about <- fluidPage(
   h3(strong("Publication about the tagging method")),
   br(),
-  tags$ul(tags$li(h4(
-    "F\u00fcller", em("et al.")
-  ))),
+  strong(h3(biorxiv)),
+  h4("Julia Fueller, Matthias Meurer, Konrad Herbst, Krisztina Gubicza, Bahtiyar Kurtulmus, Julia D. Knopf,", br(),
+     "Daniel Kirrmaier, Benjamin Buchmuller, Gislene Pereira, Marius K. Lemberg, Michael Knop", br(), br(),
+     " doi: https://doi.org/10.1101/473876 "),
   br(),
   br(),
   h3(strong(
     "References for the online oligo design tool"
   )),
   br(),
-  tags$ul(tags$li(
-    h4(
-      "R Core Team (2018).",
-      em(
-        "R: A language and environment for statistical computing. R Foundation for Statistical Computing"
-      ),
-      "Vienna, Austria. ",
-      urlr
-    )
+  tags$ul(
+    tags$li(h4(urlr)),
+    tags$li(h4(urlshiny)),
+    tags$li(h4(urlshinyjs)),
+    tags$li(h4(urlbiostrings)),
+    tags$li(h4(urltoth))
   ),
-  tags$li(
-    h4(
-      "Winston Chang, Joe Cheng, JJ Allaire, Yihui Xie, Jonathan McPherson (2018).",
-      em("shiny: Web Application Framework for R."),
-      "R package version 1.1.0. ",
-      urlshiny
-    )
-  ),
-  tags$li(
-    h4(
-      "Dean Attali (2018).",
-      em(
-        "shinyjs: Easily Improve the User Experience of Your Shiny Apps in Seconds."
-      ),
-      "R package version 1.0. ",
-      urlshinyjs
-    )
-  ),
-  tags$li(
-    h4(
-      "Pages H, Aboyoun P, Gentleman R, DebRoy S (2017).",
-      em("Biostrings: Efficient manipulation of biological strings."),
-      "R package version 2.46.0. ",
-      urlbiostrings
-    )
-  )),
   br(),
   br(),
   h3(strong("Disclaimer")),
   br(),
   h4(
-    "The information contained in this website correct to the best of our knowledge."
+    "The information contained in this website is correct to the best of our knowledge."
   ),
   h4(
     "Under no circumstance shall the authors be liable for any potential mistakes, claim, damage or loss arising from the use of the application ",
-    em("'Online oligo design tool for PCR-targeting in mammalian cells'.")
+    em("'Online oligo design tool for PCR tagging in mammalian cells'.")
   ),
   h4(
     "The use of the tool and the reliance on any information on the site is solely at the user's own risk."
@@ -655,23 +686,25 @@ for (i in (2:nrow(templatedata))) {
       target = "_blank"
     ))
 }
+template <- fluidPage(
+  h3(strong("List of template cassettes")),
+  br(),
+  br(),
+  br(),
+  downloadButton("downloadseq", "Download sequence files (.zip)")
+)
 panel.templates <- fluidPage(
-  h3(strong("List of template cassettes for PCR tagging")),
-  br(),
-  br(),
-  downloadButton("downloadseq", "Download sequence files (.zip)"),
-  br(),
-  br(),
-  br(),
   br(),
   tags$style(
     HTML('#template td {vertical-align: middle;
          text-align: center;}')
     ),
   tags$style(
-    HTML('#template th {vertical-align: middle;
-         text-align: center;
-         border-bottom: 0;}')
+    HTML(
+      '#template th {vertical-align: middle;
+      text-align: center;
+      border-bottom: 0;}'
+    )
     ),
   tags$style(
     HTML(
@@ -688,14 +721,14 @@ panel.templates <- fluidPage(
 
 pcrmixhifi <- data.frame(
   c(
-    "10x PCR buffer",
+    "10x HiFi buffer",
     "dNTPs (10 mM)",
-    "M1 oligo (10 \u00b5M)",
-    "M2 oligo (10 \u00b5M)",
+    "M1 tagging oligo (10 \u00b5M)",
+    "M2 tagging oligo (10 \u00b5M)",
     "Template (~ 100 ng)",
     "Betaine (5 M)",
     "MgCl<sub>2</sub> (50 mM)",
-    "HiFi Polymerase (1 U/\u00b5l)",
+    "*HiFi Polymerase (1 U/\u00b5l)",
     "H<sub>2</sub>O"
   ),
   c("5", "5", "2.5", "2.5", "1", "5", "1", "1", "Ad 50"),
@@ -704,10 +737,10 @@ pcrmixhifi <- data.frame(
 names(pcrmixhifi) <- c("", "\u00b5L")
 pcrmixphu <- data.frame(
   c(
-    "10x PCR buffer",
+    "10x HiFi buffer",
     "dNTPs (10 mM)",
-    "M1 oligo (10 \u00b5M)",
-    "M2 oligo (10 \u00b5M)",
+    "M1 tagging oligo (10 \u00b5M)",
+    "M2 tagging oligo (10 \u00b5M)",
     "Template (~ 100 ng)",
     "Betaine (5 M)",
     "MgCl<sub>2</sub> (50 mM)",
@@ -721,10 +754,10 @@ names(pcrmixphu) <- c("", "\u00b5L")
 #   actionButton("runpcr", label = "Run PCR"))
 pcrmixvel <- data.frame(
   c(
-    "10x PCR buffer",
+    "10x HiFi buffer",
     "dNTPs (10 mM)",
-    "M1 oligo (10 \u00b5M)",
-    "M2 oligo (10 \u00b5M)",
+    "M1 tagging oligo (10 \u00b5M)",
+    "M2 tagging oligo (10 \u00b5M)",
     "Template (~ 100 ng)",
     "Betaine (5 M)",
     "MgCl<sub>2</sub> (50 mM)",
@@ -764,11 +797,6 @@ pcr <- data.frame(
 )
 names(pcr) <- c("Step", "\u00b0C", "min", "")
 panel.pcr <-  fluidPage(
-  h3(
-    strong(
-      "Example protocol for the amplification of the gene tagging PCR cassette"
-    )
-  ),
   br(),
   br(),
   h4(
@@ -777,7 +805,7 @@ panel.pcr <-  fluidPage(
     br(),
     br(),
     strong("Primer:"),
-    "M1 and M2 oligos, designed with ",
+    "M1 and M2 tagging oligos, designed with ",
     actionLink("linktotool", "our oligo design tool"),
     br(),
     br(),
@@ -913,7 +941,25 @@ panel.pcr <-  fluidPage(
     br(),
     h4(
       em(
-        "We note that the Phusion polymerase using the manufacturer supplied buffer does not work for cassette amplification with M1 and M2 oligos, whereas for Velocity polymerase using the buffer provided by the manufacturer, good amounts of the product are obtained. We suggest pipetting on ice and pre-heating the PCR machine or hot start. We found that all polymerases work well using the buffer conditions and amplification above.",
+        "We note that the Phusion polymerase using the manufacturer supplied buffer does not work for cassette amplification with M1 and M2 tagging oligos,",
+        style = "color:MediumBlue "
+      )
+    ),
+    h4(
+      em(
+        "whereas for Velocity polymerase using the buffer provided by the manufacturer good amounts of the product are obtained.",
+        style = "color:MediumBlue "
+      )
+    ),
+    h4(
+      em(
+        "We suggest pipetting on ice and pre-heating the PCR machine or hot start.",
+        style = "color:MediumBlue "
+      )
+    ),
+    h4(
+      em(
+        "We found that all polymerases work well using the buffer conditions and amplification above.",
         style = "color:MediumBlue "
       )
     ),

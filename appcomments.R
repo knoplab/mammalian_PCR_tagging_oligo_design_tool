@@ -1,11 +1,14 @@
 # Comments ----
 panel.comment <-
-  fluidPage(h3(
+  fluidPage(
+    br(),
+    br(),
+    h4(
     strong(
       "If you have any questions or suggestions regarding our online oligo design tool for PCR tagging, please leave us a comment here or email us."
     )
   ),
-  h3(
+  h4(
     strong(
       "If you want to comment as a guest, just type the comment, enter your name and email and tick the checkbox 'I'd rather post as guest'."
     )

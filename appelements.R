@@ -46,10 +46,7 @@ regiontext <-
           style = "color:MediumAquaMarine"
         ), sep = '\n')
 stopwarning <-
-  paste0('<br>',
-         '<br>',
-         "Warning! The insertion site (marked in red) is not a stop codon.",
-         '<br>')
+  paste0("Warning! The insertion site (marked in red) is not a stop codon.")
 # crRNA header
 sumcrRNA <- paste(
   '<span style = "font-weight:bold; font-family: Arial">',
@@ -136,7 +133,7 @@ monetitle <- paste0(
   '<br>',
   '<br>',
   '<span style = "font-weight:bold; font-family: Arial; font-size: 24px; color:green">',
-  "M1-oligo ",
+  "M1 tagging oligo ",
   '</span>',
   '<span style = "font-weight:bold; font-family: Arial; font-size: 24px">',
   "(one forward oligo)",
@@ -145,7 +142,7 @@ monetitle <- paste0(
 monedescr <- paste0(
   '<br>',
   '<span style = "font-style:italic; font-family: Arial; font-size: 18px; color:MediumBlue">',
-  "Only one M1-oligo is generated, since this oligo is independent from the PAM sites or Cas12a (Cpf1) variants.",
+  "Only one M1 tagging oligo is generated, since this oligo is independent from the PAM sites or Cas12a (Cpf1) variants.",
   '<br>',
   '<br>',
   '<br>',
@@ -155,7 +152,7 @@ mtwotitle <- paste0(
   '<br>',
   '<br>',
   '<span style = "font-weight:bold; font-family: Arial; font-size: 24px; color:CornflowerBlue ">',
-  "M2-oligo(s) ",
+  "M2 tagging oligo(s) ",
   '</span>',
   '<span style = "font-weight:bold; font-family: Arial; font-size: 24px">',
   "(one or more reverse oligos)",
@@ -164,7 +161,7 @@ mtwotitle <- paste0(
 mtwodescr <- paste0(
   '<br>',
   '<span style = "font-style:italic; font-family: Arial; font-size: 18px; color:MediumBlue">',
-  "Zero, one or multiple M2-oligos are generated, since the oligos depend on the PAM sites and Cas12a (Cpf1) variants.",
+  "Zero, one or multiple M2 tagging oligos are generated, since the oligos depend on the PAM sites and Cas12a (Cpf1) variants.",
   '<br>',
   '<br>',
   '<br>',
@@ -175,7 +172,7 @@ mtwoext <- paste0(
   '<span style = "font-style:italic; font-family: Arial; font-size: 18px; color:MediumBlue">',
   "Please continue by selecting extended search space below, which will widen the region to search for suitable PAM sites in the 3",
   "\u0027",
-  "UTR of the gene. In this case the homology arm of the M2 oligo is adjusted in such a manner that the binding site of the guide RNA is deleted. Since this is in the 3",
+  "UTR of the gene. In this case the homology arm of the M2 tagging oligo is adjusted in such a manner that the binding site of the guide RNA is deleted. Since this is in the 3",
   "\u0027",
   "UTR of the gene after the insertion site of the cassette, we deem this to be non-critical.",
   '<br>',
@@ -188,7 +185,9 @@ mtwoextb <- paste0(
   '<span style = "font-style:italic; font-family: Arial; font-size: 18px; color:MediumBlue">',
   "The use of oligos marked with an * is not recommended, as they can lead to decreased tag efficiency. If you continue by selecting extended search space below, this will widen the region to search for suitable PAM sites in the 3",
   "\u0027",
-  "UTR of the gene. The homology arm of the M2 oligo is adjusted in such a manner that the binding site of the guide RNA is deleted. Since this is in the 3",
+  "UTR of the gene.",
+  '<br>',
+  "The homology arm of the M2 tagging oligo is adjusted in such a manner that the binding site of the guide RNA is deleted. Since this is in the 3",
   "\u0027",
   "UTR of the gene after the insertion site of the cassette, we deem this to be non-critical.",
   '<br>',
@@ -218,7 +217,7 @@ mtwocomment <-
 mtwocommenterank <- paste0(
   '<br>',
   '<span style = "font-style:italic; font-family: Arial; font-size: 18px; color:MediumBlue">',
-  "M2-oligos are ranked according to the following criteria:",
+  "M2 tagging oligos are ranked according to the following criteria:",
   '<br>',
   '<br>',
   tags$ol(

@@ -28,7 +28,7 @@ lookforpam <-
            target,
            extendedspace)
   {
-    if (plasmid  %in% plasmidchoice) {
+    if (plasmid %in% plasmidchoice) {
       dc <-
         matchPattern(pam, DNAString(target)[184:203], fixed = F)
       rc <-
@@ -60,10 +60,16 @@ lookforpam <-
 ##### Function merging the results to lists according to strands (direct/reverse/direct extended/reverse extended) -----
 mergepamlists <- function(i)
 {
+  # allpamspec <-
+  #   list(tttv[[i]], tycv[[i]], astttv[[i]], astycv[[i]], mccc[[i]], asrrtttv[[i]], ratr[[i]], tatv[[i]], otherpams[[i]])
+  # if (length(tttv[[i]]) == 0 |
+  #     length(tycv[[i]]) == 0 | length(astttv[[i]]) == 0 |
+  #     length(astycv[[i]]) == 0 |
+  #     length(mccc[[i]]) == 0 | length(asrrtttv[[i]]) == 0 | length(ratr[[i]]) == 0 |
+  #     length(tatv[[i]]) == 0 | length(otherpams[[i]]) == 0)
   allpamspec <-
-    list(tttv[[i]], tycv[[i]], astttv[[i]], astycv[[i]], mccc[[i]], ratr[[i]], tatv[[i]], otherpams[[i]])
-  if (length(tttv[[i]]) == 0 |
-      length(tycv[[i]]) == 0 | length(astttv[[i]]) == 0 |
+    list(tycv[[i]], astttv[[i]], astycv[[i]], mccc[[i]], ratr[[i]], tatv[[i]], otherpams[[i]])
+  if (length(tycv[[i]]) == 0 | length(astttv[[i]]) == 0 |
       length(astycv[[i]]) == 0 |
       length(mccc[[i]]) == 0 | length(ratr[[i]]) == 0 |
       length(tatv[[i]]) == 0 | length(otherpams[[i]]) == 0)
