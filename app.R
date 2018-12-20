@@ -6,6 +6,7 @@ source("appUI.R")
 source("appelements.R")
 source("appfunctions.R")
 source("appcomments.R")
+source("20181212-retrieve_by_ENS.R")
 # Define UI - panels defined in appUI.R ----
 ui <-
   fluidPage(
@@ -93,7 +94,25 @@ tags$head(tags$style(
     }
     "
   )
-  )),
+  ),
+  tags$style(
+    HTML(".shiny-notification {
+              height: 60px;
+              width: 300px;
+              position:fixed;
+              bottom: 0px;
+              right: 0px;
+            }
+           "
+    )
+  )
+  ),
+# tags$style(".checkbox, .radio-inline {
+#     text-align: middle;
+#            margin-left: 0px;
+#            margin-right: 0px;
+#            padding: 0px;
+#            width: 20%;} "),
 # Navigation bar style
 tags$head(
   tags$style(HTML(
@@ -203,6 +222,9 @@ navbarPage(
       template,
       img(src = 'tags.svg', width = 500, align = "left")
     ),
+    br(),
+    h4(em("It will take another couple of weeks until the pMaCTag plasmids will appear on Addgene.", br(),
+    "Until then please feel free to contact the corresponding author,", mailknopauthor, "for any plasmid request.")),
     panel.templates)
   ),
   tabPanel(
@@ -305,6 +327,60 @@ server <- function(input, output, session)
     renderTable({
       pcr
     })
+  rvens <-
+    reactiveValues(data = NULL)
+  observe({
+    if (input$inputmethod == 1) {
+      enableActionButton("ens", session)
+      enable("inp_ensembl")
+      output$ensinputdescr <- renderText({ensinputact})
+      output$targinputdescr <- renderText({targinputpass})
+      disable("inp_target")
+      observe({
+        if (nchar(input$inp_ensembl) == 15 && length(grep("ENST[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]", input$inp_ensembl))) {
+          enableActionButton("ens", session)
+        } else if (nchar(input$inp_ensembl) == 17 && length(grep("ENST[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9].[0-9]", input$inp_ensembl))) {
+          enableActionButton("ens", session)
+        } else {
+          disableActionButton("ens", session)
+        }
+      })
+      observeEvent(input$inp_ensembl, {
+        if (nchar(input$inp_ensembl) == 15 && length(grep("ENST[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]", input$inp_ensembl))) {
+          output$enswarn <- renderText({""})
+        } else if (nchar(input$inp_ensembl) == 17 && length(grep("ENST[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9].[0-9]", input$inp_ensembl))) {
+          output$enswarn <- renderText({""})
+        } else if (nchar(input$inp_ensembl) > 0) {
+          output$enswarn <- renderText({enstwarning})
+        }
+      })
+    } else if (input$inputmethod == 2) {
+      disableActionButton("ens", session)
+      disable("inp_ensembl")
+      output$ensinputdescr <- renderText({ensinputpass})
+      output$targinputdescr <- renderText({targinputact})
+      enable("inp_target")
+      output$enswarn <- renderText({""})
+    }
+  })
+  observeEvent(input$ens,
+                 {
+                   withProgress(message = 'Retrieving Ensembl data...', value = 0.33, {
+                   rvens$data <- substr(input$inp_ensembl, start = 1, stop = 15)
+                   updateTextInput(
+                     session,
+                     "inp_target",
+                     value = get_flanking_genomic(rvens$data, useMart("ensembl", dataset = "hsapiens_gene_ensembl"), "https://rest.ensembl.org", "homo_sapiens", flankSize = 200)
+                   )
+                   updateTextInput(
+                     session,
+                     "genename",
+                     value = get_transcripts(rvens$data, useMart("ensembl", dataset = "hsapiens_gene_ensembl"))[[1,6]]
+                   )
+                   # Increment the progress bar, and update the detail text.
+                   incProgress(1, detail = paste("Completed"))
+})
+                   })
   observeEvent(input$linktotemplates, {
     updateNavbarPage(session, "home", "Template cassettes")
   })
@@ -346,6 +422,7 @@ server <- function(input, output, session)
         "ATTGTGAAGTGCTTGTTGAATCTGAGACTTAAAAATTTTGTTCTTTTAGAGGAAACATGGAGAAAGCCATTGACATGTTCAACAAAGCTATTAACCTGGCCAAATCGGAAATGGAGATGGCCCATCTGTATTCACTTTGCGATGCCGCCCATGCCCAGACAGAAGTTGCAAAGAAATACGGATTAAAACCACCAACATTATAAAACAGGGGGAAAGCAGACTGACCCTCTTTTTAAAAGTTTACCCCCTCTTCAACTGAACCCTAAAGACACTGTCATGAACTGTGTTGAATGGTGGAAATCAGTATTTCTGTTTGTGGTGTTGTTATTTGTTACATCTGTTTCATGTCTAGGTGTTGTGGGTGTGGCTGTTGAAGGAAGTTTGCAGTCTTGCAGCTTTTATT"
       )
     )
+    updateTextInput(session, "inp_ensembl", value = paste("ENST00000284320.5"))
     updateTextInput(session, "genename", value = paste("TOMM70"))
     updateNumericInput(session, "threeha", value = 55)
     updateNumericInput(session, "fiveha", value = 90)
@@ -781,8 +858,8 @@ server <- function(input, output, session)
         input$genename
         input$threeha
         input$fiveha
-        input$phospho
-        input$phosphonum
+        #input$phospho
+        #input$phosphonum
       }
       , {
         # Looking for PAM-sites
@@ -1021,10 +1098,20 @@ server <- function(input, output, session)
               crRNAs[i] <-
                 as.character(DNAString(targetseq())[(crRNAstart - 19):(crRNAstart)])
             }
-            # Oligos with lower rank numbers are considered to be more suitable for gene tagging.
-            if (grepl("AAAA", crRNAs[i])) {
-              # Potential Pol III terminator
-              oligorank[i] <- 5
+            if (sortedallpam$cpf[i] == "Lb") {
+              dr[i] <-
+                gsub("U", "T", as.character(reverseComplement(RNAString(
+                  drs[drs$Name == "LbCas12a", 2]
+                ))))
+            } else if (sortedallpam$cpf[i] == "As") {
+              dr[i] <-
+                gsub("U", "T", as.character(reverseComplement(RNAString(
+                  drs[drs$Name == "AsCas12a", 2]
+                ))))
+            }
+            # Oligos with lower rank numbers are considered to be more suitable for gene tagging.            if (grepl("AAAA", paste0(crRNAs[i], dr[i]))) {
+            if (grepl("AAAA", paste0(crRNAs[i], dr[i]))) {
+              oligorank[i] <- 6
             }
             if (countPattern(DNAString(sortedallpam$PAM[i]),
                              # Unconventional PAM sites
@@ -1050,6 +1137,8 @@ server <- function(input, output, session)
           summary = as.data.frame(summary)
           csvoutput <-
             summary # Output table for .xlsx and .csv download
+          withProgress(message = 'Computing...', value = 0, {
+            # Number of times we'll go through the loop
           for (i in (1:pamnumber)) {
             # Each row contains one reverse oligo and the information about it
             if (countPattern(DNAString(sortedallpam$PAM[i]),
@@ -2959,7 +3048,13 @@ server <- function(input, output, session)
             csvoutput <-
               csvoutput[-c(pamnumber + 1, pamnumber + 2, pamnumber + 3), ]
             csvoutput$Target <- NULL
-          }
+            # Increment the progress bar, and update the detail text.
+            incProgress(1/pamnumber, detail = paste("Reverse oligo", i, "/", pamnumber))
+            
+            # Pause for 0.1 seconds to simulate a long computation.
+            #Sys.sleep(0.1)
+                      }
+      })  
           # Reverse oligo - result table column names
           colnames(summary)[colnames(summary) == "Sequence"] <-
             paste0(
@@ -3127,14 +3222,14 @@ server <- function(input, output, session)
                 x)
             } else if ("Other" %ni% input$inp_cpf) {
               output$cpf <- renderTable({
-                validate(need(
-                  input$inp_target != "",
-                  'Please provide a nucleotide sequence.'
-                ))
-                validate(need(
-                  input$inp_cpf != "",
-                  'Select at least one Cas12a (Cpf1) variant.'
-                ))
+                # validate(need(
+                #   input$inp_target != "",
+                #   'Please provide a nucleotide sequence.'
+                # ))
+                # validate(need(
+                #   input$inp_cpf != "",
+                #   'Select at least one Cas12a (Cpf1) variant.'
+                # ))
                 rv$data
               }, sanitize.text.function = function(x)
                 x)
@@ -3480,6 +3575,7 @@ server <- function(input, output, session)
           
           observe({
             if ((input$extended == 1) & (nchar(targetseq()) == 403)) {
+            #if (input$extended == 1) {
               enable("inp_ext")
               enableActionButton("inp_apply", session)
               

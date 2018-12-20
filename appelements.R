@@ -23,7 +23,6 @@ drtable <- data.frame(
   Name    = c("LbCas12a",
               "AsCas12a"),
   `crRNA_dr`  = c("UAAUUUCUACUAAGUGUAGAU",
-                  # LbCas12a
                   "UAAUUUCUACUCUUGUAGAU"),
   stringsAsFactors = F
 )
@@ -37,6 +36,11 @@ urliupac <-
   a("Please use IUPAC Codes for Nucleotides.",
     href = "https://www.bioinformatics.org/sms/iupac.html",
     target = "_blank")
+ensinputact <- paste0('<span style = "color:MediumBlue">', "Please enter the ",  '<a href="https://www.ensembl.org/info/genome/genebuild/genome_annotation.html">Ensembl transcript ID</a>',  " of your target:", '</span>')
+ensinputpass <- paste0('<span style = "opacity: 0.5">', "Please enter the ",  '<a href="https://www.ensembl.org/info/genome/genebuild/genome_annotation.html">Ensembl transcript ID</a>',  " of your target:", '</span>')
+targinputact <- paste0('<span style = "color:MediumBlue">', "Or provide your target sequence in the following way:", '<br>', strong("200 nt before and 200 nt after the target site (stop codon), 403 nt altogether"),  '</span>')
+targinputpass <- paste0('<span style = "opacity: 0.5">', "Or provide your target sequence in the following way:", '<br>', strong("200 nt before and 200 nt after the target site (stop codon), 403 nt altogether"),  '</span>')
+enstwarning <- paste0('<span style = "color:Red">', "The Ensembl ID format should be ENSTXXXXXXXXXXX or ENSTXXXXXXXXXXX.X",'</span>')
 regiontext <-
   paste(h4(em("Search space for PAM sites:")),
         h5(

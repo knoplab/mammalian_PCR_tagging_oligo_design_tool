@@ -20,7 +20,7 @@ aroundstop <- reactive({
     (DNAString(targetinput))[(200 - 17 - 10 + 1):(200 + 3 + 17 + 10)]
   }
 })
-#### Function searchingfor PAM sites -----
+#### Function searching for PAM sites -----
 lookforpam <-
   function(plasmid,
            pam,
@@ -68,7 +68,7 @@ mergepamlists <- function(i)
   #     length(mccc[[i]]) == 0 | length(asrrtttv[[i]]) == 0 | length(ratr[[i]]) == 0 |
   #     length(tatv[[i]]) == 0 | length(otherpams[[i]]) == 0)
   allpamspec <-
-    list(tycv[[i]], astttv[[i]], astycv[[i]], mccc[[i]], ratr[[i]], tatv[[i]], otherpams[[i]])
+    list(tycv[[i]], astttv[[i]], astycv[[i]], mccc[[i]], tatv[[i]], ratr[[i]], otherpams[[i]])
   if (length(tycv[[i]]) == 0 | length(astttv[[i]]) == 0 |
       length(astycv[[i]]) == 0 |
       length(mccc[[i]]) == 0 | length(ratr[[i]]) == 0 |
