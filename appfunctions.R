@@ -68,7 +68,7 @@ mergepamlists <- function(i)
   #     length(mccc[[i]]) == 0 | length(asrrtttv[[i]]) == 0 | length(ratr[[i]]) == 0 |
   #     length(tatv[[i]]) == 0 | length(otherpams[[i]]) == 0)
   allpamspec <-
-    list(tycv[[i]], astttv[[i]], astycv[[i]], mccc[[i]], tatv[[i]], ratr[[i]], otherpams[[i]])
+    list(tycv[[i]], astttv[[i]], astycv[[i]], tatv[[i]], mccc[[i]], ratr[[i]], otherpams[[i]])
   if (length(tycv[[i]]) == 0 | length(astttv[[i]]) == 0 |
       length(astycv[[i]]) == 0 |
       length(mccc[[i]]) == 0 | length(ratr[[i]]) == 0 |
@@ -88,3 +88,13 @@ mergepamlists <- function(i)
   }
   return(allpammspec = allpammspec)
 }
+####
+str_break = function(x, width = 150L) {
+  n = nchar(x)
+  if (n <= width) return(x)
+  n1 = seq(1L, n, by = width)
+  n2 = seq(width, n, by = width)
+  if (n %% width != 0) n2 = c(n2, n)
+  substring(x, n1, n2)
+}
+####

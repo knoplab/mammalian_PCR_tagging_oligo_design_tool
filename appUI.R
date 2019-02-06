@@ -1,9 +1,4 @@
 # In this file the Shiny UI elements of the Mammalian PCR tagging online tool are defined
-
-
-# What is PCR tagging?  --------------------------------------------------------------------
-
-
 urlplasmid <-
   a("here",
     href = "https://www.addgene.org/69988/",
@@ -20,10 +15,9 @@ knoplab <-
   a("www.knoplab.de",
     href = "http://www.knoplab.de",
     target = "_blank")
-biorxiv <- 
-  a("CRISPR/Cas12a-assisted PCR tagging of mammalian genes",
-    href = "https://www.biorxiv.org/content/early/2018/11/20/473876",
-    target = "_blank")
+
+# What is PCR tagging?  --------------------------------------------------------------------
+
 panel.needed <-
   fluidPage(
     h4("What do I need for PCR tagging?", style = "color:Crimson; font-weight:bold"),
@@ -75,13 +69,24 @@ panel.needed <-
     br()
   )
 
+biorxiv <-
+  a(
+    "CRISPR/Cas12a-assisted PCR tagging of mammalian genes",
+    href = "https://www.biorxiv.org/content/early/2018/11/20/473876",
+    target = "_blank"
+  )
 panel.whatintro <- fluidPage(
   br(),
   h4("See reference:", br()),
-strong(h3(biorxiv)),
-h4("Julia Fueller, Matthias Meurer, Konrad Herbst, Krisztina Gubicza, Bahtiyar Kurtulmus, Julia D. Knopf,", br(),
-"Daniel Kirrmaier, Benjamin Buchmuller, Gislene Pereira, Marius K. Lemberg, Michael Knop", br(), br(),
-" doi: https://doi.org/10.1101/473876 "),
+  strong(h3(biorxiv)),
+  h4(
+    "Julia Fueller, Matthias Meurer, Konrad Herbst, Krisztina Gubicza, Bahtiyar Kurtulmus, Julia D. Knopf,",
+    br(),
+    "Daniel Kirrmaier, Benjamin Buchmuller, Gislene Pereira, Marius K. Lemberg, Michael Knop",
+    br(),
+    br(),
+    " doi: https://doi.org/10.1101/473876 "
+  ),
   br(),
   br(),
   fluidPage(
@@ -158,9 +163,14 @@ panel.intro <- fluidPage(
   br(),
   h4("See reference:", br()),
   strong(h3(biorxiv)),
-  h4("Julia Fueller, Matthias Meurer, Konrad Herbst, Krisztina Gubicza, Bahtiyar Kurtulmus, Julia D. Knopf,", br(),
-     "Daniel Kirrmaier, Benjamin Buchmuller, Gislene Pereira, Marius K. Lemberg, Michael Knop", br(), br(),
-     " doi: https://doi.org/10.1101/473876 "),
+  h4(
+    "Julia Fueller, Matthias Meurer, Konrad Herbst, Krisztina Gubicza, Bahtiyar Kurtulmus, Julia D. Knopf,",
+    br(),
+    "Daniel Kirrmaier, Benjamin Buchmuller, Gislene Pereira, Marius K. Lemberg, Michael Knop",
+    br(),
+    br(),
+    " doi: https://doi.org/10.1101/473876 "
+  ),
   br(),
   fluidPage(
     h4("What is PCR tagging?", style = "color:Crimson; font-weight:bold"),
@@ -184,19 +194,46 @@ panel.target <- fluidPage(splitLayout(
   cellWidths = c(1000, 810),
   fluidPage(
     h3(
-      strong("STEP 1: Enter your target sequence", style = "color:Crimson; font-weight:bold")
+      strong("STEP 1: Define your target sequence", style = "color:Crimson; font-weight:bold")
     ),
     br(),
-    em(
-      h4("Please provide your target sequence in the following way:"),
-      h4(
-        strong(
-          "200 nt before and 200 nt after the target site (stop codon), 403 nt altogether"
-        )
+    radioButtons(
+      "inputmethod",
+      label = em(
+        h4("Please select an input method for your target:", style = "color:MediumBlue")
       ),
-      style = "color:MediumBlue"
+      choiceNames = list("Ensembl ID", "Target sequence"),
+      choiceValues = c("Ensembl", "Sequence"),
+      selected = "Ensembl",
+      inline = TRUE
     ),
-    
+    br(),
+    br(),
+    h4(em(htmlOutput("ensinputdescr"))),
+    textInput(
+      "inp_ensembl",
+      label = NULL,
+      placeholder = "ENSTXXXXXXXXXXX",
+      width = 180
+    ),
+    htmlOutput("ensfeedback"),
+    tags$style(HTML('#enswarn color:orange')),
+    uiOutput("enswarn"),
+    br(),
+    actionButton("ens", label = "Get sequence"),
+    br(),
+    br(),
+    br(),
+    h4(em(htmlOutput("targinputdescr"))),
+    # em(
+    #   h4("Or provide your target sequence in the following way:"),
+    #   h4(
+    #     strong(
+    #       "200 nt before and 200 nt after the target site (stop codon), 403 nt altogether"
+    #     )
+    #   ),
+    #   style = "color:MediumBlue"
+    # ),
     h4(uiOutput("inp_target_text")),
     textAreaInput(
       "inp_target",
@@ -208,6 +245,7 @@ panel.target <- fluidPage(splitLayout(
       
     ),
     tags$head(tags$style("#inp_target{font-family: Roboto Mono}")),
+    br(),
     actionButton("example", label = "Click here for an example"),
     br(),
     br(),
@@ -217,6 +255,10 @@ panel.target <- fluidPage(splitLayout(
     br()
   ),
   fluidPage(
+    br(),
+    br(),
+    br(),
+    br(),
     br(),
     br(),
     br(),
@@ -488,23 +530,15 @@ panel.output <-
     htmlOutput("cpff"),
     htmlOutput("mtwotitle"),
     htmlOutput("mtwodescr"),
-    tags$style(HTML(
-      '#cpf {table-layout: fixed; width: 3000px}'
-    )),
+    tags$style(HTML('#cpf {table-layout: fixed; width: 3000px}')),
     tags$style(HTML('#cpf {font-family: "Roboto Mono"}')),
     tags$style(HTML('#cpf th {font-family: "Arial"}')),
     tags$style(HTML('#cpf th:nth-child(2) {width: 1028px}')),
     tags$style(HTML('#cpf td:nth-child(2) {width: 1028px}')),
     tags$style(HTML('#cpf td:first-child {width: 200px}')),
-    tags$style(HTML(
-      '#cpf td:nth-child(5) {border-left: 2px solid grey}'
-    )),
-    tags$style(HTML(
-      '#cpf th:nth-child(5) {border-left: 2px solid grey}'
-    )),
-    tags$style(HTML(
-      '#cpf td:nth-child(7) {white-space:nowrap;}'
-    )),
+    tags$style(HTML('#cpf td:nth-child(5) {border-left: 2px solid grey}')),
+    tags$style(HTML('#cpf th:nth-child(5) {border-left: 2px solid grey}')),
+    tags$style(HTML('#cpf td:nth-child(7) {white-space:nowrap;}')),
     tags$style(HTML('#cpf tr:first-child td {border-top: 0}')),
     tags$style(HTML('#cpf td {vertical-align: middle;}')),
     tags$style(HTML('#cpf th {vertical-align: middle;}')),
@@ -586,7 +620,7 @@ panel.download <- fluidPage(
   downloadButton("downloadxlsx", "Download results (.xlsx)"),
   downloadButton("downloadcsv", "Download results (.csv)"),
   #downloadButton("report", "PDF report"),
-  h3(htmlOutput("nextstep")),
+  h4(htmlOutput("nextstep")),
   htmlOutput("offtarget")
 )
 
@@ -627,9 +661,14 @@ panel.about <- fluidPage(
   h3(strong("Publication about the tagging method")),
   br(),
   strong(h3(biorxiv)),
-  h4("Julia Fueller, Matthias Meurer, Konrad Herbst, Krisztina Gubicza, Bahtiyar Kurtulmus, Julia D. Knopf,", br(),
-     "Daniel Kirrmaier, Benjamin Buchmuller, Gislene Pereira, Marius K. Lemberg, Michael Knop", br(), br(),
-     " doi: https://doi.org/10.1101/473876 "),
+  h4(
+    "Julia Fueller, Matthias Meurer, Konrad Herbst, Krisztina Gubicza, Bahtiyar Kurtulmus, Julia D. Knopf,",
+    br(),
+    "Daniel Kirrmaier, Benjamin Buchmuller, Gislene Pereira, Marius K. Lemberg, Michael Knop",
+    br(),
+    br(),
+    " doi: https://doi.org/10.1101/473876 "
+  ),
   br(),
   br(),
   h3(strong(
@@ -686,6 +725,114 @@ for (i in (2:nrow(templatedata))) {
       target = "_blank"
     ))
 }
+for (i in (2:7)) {
+  templatedata[i, 6] <-
+    as.character(a(
+      templatedata[i, 6],
+      href = paste0("https://www.addgene.org/", as.character(119980 + i - 2), "/"),
+      target = "_blank"
+    ))
+}
+for (i in (9:19)) {
+  templatedata[i, 6] <-
+    as.character(a(
+      templatedata[i, 6],
+      href = paste0("https://www.addgene.org/", as.character(119980 + i - 2), "/"),
+      target = "_blank"
+    ))
+}
+for (i in (21:33)) {
+  templatedata[i, 6] <-
+    as.character(a(
+      templatedata[i, 6],
+      href = paste0("https://www.addgene.org/", as.character(119980 + i - 2), "/"),
+      target = "_blank"
+    ))
+}
+  templatedata[34, 6] <-
+    as.character(a(
+      templatedata[34, 6],
+      href = paste0("https://www.addgene.org/119986/"),
+      target = "_blank"
+    ))
+  templatedata[35, 6] <-
+    as.character(a(
+      templatedata[35, 6],
+      href = paste0("https://www.addgene.org/119998/"),
+      target = "_blank"
+    ))
+  for (i in (2:7)) {
+    templatedata[i, 7] <-
+      as.character(a(
+        templatedata[i, 7],
+        href = paste0("https://www.addgene.org/", as.character(120044 + i - 2), "/"),
+        target = "_blank"
+      ))
+  }
+  for (i in (9:19)) {
+    templatedata[i, 7] <-
+      as.character(a(
+        templatedata[i, 7],
+        href = paste0("https://www.addgene.org/", as.character(120044 + i - 2), "/"),
+        target = "_blank"
+      ))
+  }
+  for (i in (21:33)) {
+    templatedata[i, 7] <-
+      as.character(a(
+        templatedata[i, 7],
+        href = paste0("https://www.addgene.org/", as.character(120044 + i - 2), "/"),
+        target = "_blank"
+      ))
+  }
+  templatedata[34, 7] <-
+    as.character(a(
+      templatedata[34, 7],
+      href = paste0("https://www.addgene.org/120050/"),
+      target = "_blank"
+    ))
+  templatedata[35, 7] <-
+    as.character(a(
+      templatedata[35, 7],
+      href = paste0("https://www.addgene.org/120062/"),
+      target = "_blank"
+    ))
+  for (i in (2:7)) {
+    templatedata[i, 8] <-
+      as.character(a(
+        templatedata[i, 8],
+        href = paste0("https://www.addgene.org/", as.character(120012 + i - 2), "/"),
+        target = "_blank"
+      ))
+  }
+  for (i in (9:19)) {
+    templatedata[i, 8] <-
+      as.character(a(
+        templatedata[i, 8],
+        href = paste0("https://www.addgene.org/", as.character(120012 + i - 2), "/"),
+        target = "_blank"
+      ))
+  }
+  for (i in (21:33)) {
+    templatedata[i, 8] <-
+      as.character(a(
+        templatedata[i, 8],
+        href = paste0("https://www.addgene.org/", as.character(120012 + i - 2), "/"),
+        target = "_blank"
+      ))
+  }
+  templatedata[34, 8] <-
+    as.character(a(
+      templatedata[34, 8],
+      href = paste0("https://www.addgene.org/120018/"),
+      target = "_blank"
+    ))
+  templatedata[35, 8] <-
+    as.character(a(
+      templatedata[35, 8],
+      href = paste0("https://www.addgene.org/120030/"),
+      target = "_blank"
+    ))
 template <- fluidPage(
   h3(strong("List of template cassettes")),
   br(),

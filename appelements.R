@@ -26,6 +26,7 @@ drtable <- data.frame(
                   "UAAUUUCUACUCUUGUAGAU"),
   stringsAsFactors = F
 )
+# URL-s needed in the UI
 urldr <-
   a(
     "Direct repeat sequences of Cas12a (Cpf1) orthologs",
@@ -36,11 +37,78 @@ urliupac <-
   a("Please use IUPAC Codes for Nucleotides.",
     href = "https://www.bioinformatics.org/sms/iupac.html",
     target = "_blank")
-ensinputact <- paste0('<span style = "color:MediumBlue">', "Please enter the ",  '<a href="https://www.ensembl.org/info/genome/genebuild/genome_annotation.html">Ensembl transcript ID</a>',  " of your target:", '</span>')
-ensinputpass <- paste0('<span style = "opacity: 0.5">', "Please enter the ",  '<a href="https://www.ensembl.org/info/genome/genebuild/genome_annotation.html">Ensembl transcript ID</a>',  " of your target:", '</span>')
-targinputact <- paste0('<span style = "color:MediumBlue">', "Or provide your target sequence in the following way:", '<br>', strong("200 nt before and 200 nt after the target site (stop codon), 403 nt altogether"),  '</span>')
-targinputpass <- paste0('<span style = "opacity: 0.5">', "Or provide your target sequence in the following way:", '<br>', strong("200 nt before and 200 nt after the target site (stop codon), 403 nt altogether"),  '</span>')
-enstwarning <- paste0('<span style = "color:Red">', "The Ensembl ID format should be ENSTXXXXXXXXXXX or ENSTXXXXXXXXXXX.X",'</span>')
+urlplasmid <-
+  a("here",
+    href = "https://www.addgene.org/69988/",
+    target = "_blank")
+urlplasmids <-
+  a("here",
+    href = "https://www.addgene.org/browse/article/28189750/",
+    target = "_blank")
+urlownplasmids <-
+  a("Addgene.",
+    href = "https://www.addgene.org/browse/article/28197017/",
+    target = "_blank")
+mailknop <-
+  a("m.knop (at) zmbh.uni-heidelberg.de",
+    href = "mailto:m.knop@zmbh.uni-heidelberg.de",
+    target = "_blank")
+mailknopauthor <-
+  a("Michael Knop",
+    href = "mailto:m.knop@zmbh.uni-heidelberg.de",
+    target = "_blank")
+knoplab <-
+  a("www.knoplab.de",
+    href = "http://www.knoplab.de",
+    target = "_blank")
+ensinputact <-
+  paste0(
+    '<span style = "color:MediumBlue">',
+    "Please enter the ",
+    '<a href="https://www.ensembl.org/info/genome/genebuild/genome_annotation.html" target="_blank">Ensembl transcript ID</a>',
+    " of your target:",
+    '</span>'
+  )
+ensinputpass <-
+  paste0(
+    '<span style = "opacity: 0.5">',
+    "Please enter the ",
+    '<a href="https://www.ensembl.org/info/genome/genebuild/genome_annotation.html" target="_blank">Ensembl transcript ID</a>',
+    " of your target:",
+    '</span>'
+  )
+targinputact <-
+  paste0(
+    '<span style = "color:MediumBlue">',
+    "Or provide your target sequence in the following way:",
+    '<br>',
+    strong(
+      "200 nt before and 200 nt after the target site (stop codon), 403 nt altogether"
+    ),
+    '</span>'
+  )
+targinputpass <-
+  paste0(
+    '<span style = "opacity: 0.5">',
+    "Or provide your target sequence in the following way:",
+    '<br>',
+    strong(
+      "200 nt before and 200 nt after the target site (stop codon), 403 nt altogether"
+    ),
+    '</span>'
+  )
+enstwarning <-
+  paste0(
+    '<span style = "color:Red">',
+    "The Ensembl ID format should have the correct format,", '<br>'," e.g. ENSTXXXXXXXXXXX, ENSTXXXXXXXXXXX.X or ENSTXXXXXXXXXXX.XX for human transcripts.",
+    '</span>'
+  )
+ensgwarning <-
+  paste0(
+    '<span style = "color:Red">',
+    "You have entered an Ensembl gene ID. Please choose a transcript of this gene from ",
+    '</span>'
+  )
 regiontext <-
   paste(h4(em("Search space for PAM sites:")),
         h5(

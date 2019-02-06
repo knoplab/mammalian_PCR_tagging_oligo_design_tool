@@ -2,6 +2,9 @@ library(shiny)
 library(shinyjs)
 library(writexl)
 library(Biostrings)
+#library(kableExtra)
+library(tinytex)
+#options(knitr.table.format = "latex")
 source("appUI.R")
 source("appelements.R")
 source("appfunctions.R")
@@ -96,17 +99,20 @@ tags$head(tags$style(
   )
   ),
   tags$style(
-    HTML(".shiny-notification {
-              height: 60px;
-              width: 300px;
-              position:fixed;
-              bottom: 0px;
-              right: 0px;
-            }
-           "
+    HTML(
+      ".shiny-notification {
+      height: 60px;
+      width: 300px;
+      position:fixed;
+      bottom: 0px;
+      right: 0px;
+      }
+      "
     )
-  )
-  ),
+    )),
+# Modal dialog style
+tags$head(tags$style(".modal-dialog{ width:1000px}")),
+tags$head(tags$style(".modal-body{ min-height:150px}")),
 # tags$style(".checkbox, .radio-inline {
 #     text-align: middle;
 #            margin-left: 0px;
@@ -217,15 +223,25 @@ navbarPage(
     br(),
     br(),
     br(),
-    mainPanel(splitLayout(
-      cellWidths = c(600, 510),
-      template,
-      img(src = 'tags.svg', width = 500, align = "left")
-    ),
-    br(),
-    h4(em("It will take another couple of weeks until the pMaCTag plasmids will appear on Addgene.", br(),
-    "Until then please feel free to contact the corresponding author,", mailknopauthor, "for any plasmid request.")),
-    panel.templates)
+    mainPanel(
+      splitLayout(
+        cellWidths = c(600, 510),
+        template,
+        img(src = 'tags.svg', width = 500, align = "left")
+      ),
+      br(),
+      h4(
+        em(
+          "Most of the pMaCTag plasmids are now available at",
+          urlownplasmids,
+          br(),
+          "Please feel free to contact the corresponding author,",
+          mailknopauthor,
+          "for further plasmid requests."
+        )
+      ),
+      panel.templates
+    )
   ),
   tabPanel(
     title = "Cassette PCR",
@@ -244,9 +260,7 @@ navbarPage(
     br(),
     br(),
     br(),
-    mainPanel(
-      panel.comment, width = 12
-              )
+    mainPanel(panel.comment, width = 12)
   ),
   tabPanel(
     title = "About",
@@ -267,7 +281,7 @@ navbarPage(
     panel.impressum
   )
 )
-  )
+    )
 
 # Define server logic ----
 
@@ -302,6 +316,7 @@ server <- function(input, output, session)
   hideElement("inp_apply")
   hideElement("downloadcsv")
   hideElement("downloadxlsx")
+  hideElement("report")
   hideElement("runpcr")
   output$template <-
     renderTable({
@@ -330,57 +345,286 @@ server <- function(input, output, session)
   rvens <-
     reactiveValues(data = NULL)
   observe({
-    if (input$inputmethod == 1) {
-      enableActionButton("ens", session)
+    if (input$inputmethod == "Ensembl") {
       enable("inp_ensembl")
-      output$ensinputdescr <- renderText({ensinputact})
-      output$targinputdescr <- renderText({targinputpass})
+      output$ensinputdescr <- renderText({
+        ensinputact
+      })
+      output$targinputdescr <- renderText({
+        targinputpass
+      })
       disable("inp_target")
-      observe({
-        if (nchar(input$inp_ensembl) == 15 && length(grep("ENST[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]", input$inp_ensembl))) {
-          enableActionButton("ens", session)
-        } else if (nchar(input$inp_ensembl) == 17 && length(grep("ENST[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9].[0-9]", input$inp_ensembl))) {
-          enableActionButton("ens", session)
+      prefixes <- readRDS("data/prefixes.rds")
+      observeEvent(input$inp_ensembl, {
+        output$ensfeedback <- renderText({
+          ""
+        })
+        if (nchar(input$inp_ensembl) > 0) {
+          if (grepl(
+            "*T[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]",
+            toupper(gsub(
+              "\t", "", gsub(" ", "", input$inp_ensembl)
+            ))
+          ) &
+          toupper(strsplit((gsub(
+            "\t", "", gsub(" ", "", input$inp_ensembl)
+          )), "T[0-9]")[[1]][1]) %in% prefixes$Prefix) {
+            output$enswarn <- renderText({
+              ""
+            })
+            enableActionButton("ens", session)
+          } else if (grepl(
+            "*G[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]",
+            toupper(gsub(
+              "\t", "", gsub(" ", "", input$inp_ensembl)
+            ))
+          ) &
+          toupper(strsplit(input$inp_ensembl, "G[0-9]")[[1]][1]) %in% prefixes$Prefix) {
+            rvens$data <-
+              toupper(strsplit((gsub(
+                "\t", "", gsub(" ", "", input$inp_ensembl)
+              )) , "\\.")[[1]][1])
+            options(stringsAsFactors = FALSE)
+            prefixes <- readRDS("data/prefixes.rds")
+            species <- readRDS("data/species.rds")
+            gene_datasets <- readRDS("data/gene_datasets.rds")
+            findspecname <-
+              sapply(prefixes$Prefix, function(.)
+                grep(., rvens$data))
+            indspecname <- which(sapply(findspecname, length) == 1)
+            indspecname <- which(sapply(findspecname, length) == 1)
+            if (length(indspecname) == 2 & indspecname[1] == 87) {
+              indspecname <- indspecname [2]
+            }
+            if (length(indspecname) == 3 &
+                "ENSCGR" %in% prefixes$Prefix[indspecname]) {
+              indspecname <- indspecname [3]
+            }
+            speciesname <-
+              gsub(")",
+                   "",
+                   strsplit(prefixes$Species.name[indspecname], "\\(")[[1]][2])
+            specieslaturl <-
+              paste(gsub(")", "", strsplit(
+                prefixes$Species.name[indspecname], "\\ "
+              )[[1]][1]),
+              gsub(")", "", strsplit(
+                prefixes$Species.name[indspecname], "\\ "
+              )[[1]][2]),
+              sep = "_")
+            if ("ENSCGR" %in% prefixes$Prefix[indspecname]) {
+              specieslaturl <- paste0(specieslaturl, "_crigri")
+            }
+            if ("ENSORL" %in% prefixes$Prefix[indspecname]) {
+              specieslaturl <- paste0(specieslaturl, "_hni")
+            }
+            output$enswarn <-   renderUI(tagList(
+              HTML(ensgwarning),
+              a(
+                href = paste0(
+                  'https://www.ensembl.org/',
+                  specieslaturl,
+                  '/Gene/Summary?g=',
+                  (gsub(
+                    "\t", "", gsub(" ", "", input$inp_ensembl)
+                  ))
+                ),
+                "here.",
+                target = "_blank"
+              )
+            ))
+            disableActionButton("ens", session)
+          } else {
+            output$enswarn <- renderText({
+              enstwarning
+            })
+            disableActionButton("ens", session)
+          }
         } else {
           disableActionButton("ens", session)
+          output$enswarn <- renderText({
+            ""
+          })
         }
       })
-      observeEvent(input$inp_ensembl, {
-        if (nchar(input$inp_ensembl) == 15 && length(grep("ENST[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]", input$inp_ensembl))) {
-          output$enswarn <- renderText({""})
-        } else if (nchar(input$inp_ensembl) == 17 && length(grep("ENST[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9].[0-9]", input$inp_ensembl))) {
-          output$enswarn <- renderText({""})
-        } else if (nchar(input$inp_ensembl) > 0) {
-          output$enswarn <- renderText({enstwarning})
-        }
-      })
-    } else if (input$inputmethod == 2) {
+    } else if (input$inputmethod == "Sequence") {
       disableActionButton("ens", session)
       disable("inp_ensembl")
-      output$ensinputdescr <- renderText({ensinputpass})
-      output$targinputdescr <- renderText({targinputact})
+      output$ensinputdescr <- renderText({
+        ensinputpass
+      })
+      output$targinputdescr <- renderText({
+        targinputact
+      })
       enable("inp_target")
-      output$enswarn <- renderText({""})
+      output$enswarn <- renderText({
+        ""
+      })
     }
   })
   observeEvent(input$ens,
-                 {
-                   withProgress(message = 'Retrieving Ensembl data...', value = 0.33, {
-                   rvens$data <- substr(input$inp_ensembl, start = 1, stop = 15)
-                   updateTextInput(
-                     session,
-                     "inp_target",
-                     value = get_flanking_genomic(rvens$data, useMart("ensembl", dataset = "hsapiens_gene_ensembl"), "https://rest.ensembl.org", "homo_sapiens", flankSize = 200)
+               {
+                 withProgress(message = 'Retrieving Ensembl data...', value = 0.25, {
+                   rvens$data <-
+                     toupper(strsplit((gsub(
+                       "\t", "", gsub(" ", "", input$inp_ensembl)
+                     )) , "\\.")[[1]][1])
+                   options(stringsAsFactors = FALSE)
+                   prefixes <- readRDS("data/prefixes.rds")
+                   species <- readRDS("data/species.rds")
+                   gene_datasets <- readRDS("data/gene_datasets.rds")
+                   findspecname <-
+                     sapply(prefixes$Prefix, function(.)
+                       grep(., rvens$data))
+                   ## dog
+                   # findspecname <- sapply(prefixes$Prefix, function(.) grep(., "ENSCAFT00000049095"))
+                   ## koala ENSPCIT00000033457
+                   # findspecname <- sapply(prefixes$Prefix, function(.) grep(., "ENSPCIT00000033457"))
+                   ## rabbit
+                   # findspecname <- sapply(prefixes$Prefix, function(.) grep(., "ENSOCUT00000015301"))
+                   ## squirrel
+                   # findspecname <- sapply(prefixes$Prefix, function(.) grep(., "ENSSTOT00000026678"))
+                   ## elephant
+                   # findspecname <- sapply(prefixes$Prefix, function(.) grep(., "ENSLAFT00000029390"))
+                   ## sheep
+                   # findspecname <- sapply(prefixes$Prefix, function(.) grep(., "ENSOART00000020885"))
+                   ## rat
+                   # findspecname <- sapply(prefixes$Prefix, function(.) grep(., "ENSRNOT00000022702"))
+                   ## mouse
+                   # findspecname <- sapply(prefixes$Prefix, function(.) grep(., "ENSMUST00000052915.13"))
+                   
+                   indspecname <-
+                     which(sapply(findspecname, length) == 1)
+                   if (length(indspecname) == 2 &
+                       indspecname[1] == 87) {
+                     indspecname <- indspecname [2]
+                   }
+                   if (length(indspecname) == 3 &
+                       "ENSCGR" %in% prefixes$Prefix[indspecname]) {
+                     indspecname <- indspecname [3]
+                   }
+                   speciesname <-
+                     gsub(")", "", strsplit(prefixes$Species.name[indspecname], "\\(")[[1]][2])
+                   specieslaturl <-
+                     paste(gsub(")", "", strsplit(prefixes$Species.name[indspecname], "\\ ")[[1]][1]),
+                           gsub(")", "", strsplit(prefixes$Species.name[indspecname], "\\ ")[[1]][2]),
+                           sep = "_")
+                   #specieslatpartone <- tolower(strsplit(prefixes$Species.name[indspecname], "\\ ")[[1]][1])
+                   #findassembly <- sapply(species$name, function(.) grep(specieslat, .))
+                   
+                   speciesnameurl <- gsub(" ", "%20", speciesname)
+                   findassembly <-
+                     sapply(species$display_name, function(.)
+                       grep(., speciesname))
+                   findassemblya <-
+                     sapply(species$display_name, function(.)
+                       grep(speciesname, .))
+                   assembly <-
+                     tolower(species$assembly[which(sapply(findassembly, length) == 1)])
+                   assemblya <-
+                     tolower(species$assembly[which(sapply(findassemblya, length) == 1)])
+                   finddataset <-
+                     sapply(tolower(gene_datasets$version), function(.)
+                       grep(intersect(assembly, assemblya), .))
+                   speciesdata <-
+                     gene_datasets$dataset[which(sapply(finddataset, length) == 1)]
+                   sequence <- tryCatch(
+                     get_flanking_genomic(
+                       rvens$data,
+                       useMart("ensembl", dataset = speciesdata),
+                       "https://rest.ensembl.org",
+                       speciesnameurl,
+                       flankSize = 200
+                     ),
+                     error = function(e)
+                       e
                    )
-                   updateTextInput(
-                     session,
-                     "genename",
-                     value = get_transcripts(rvens$data, useMart("ensembl", dataset = "hsapiens_gene_ensembl"))[[1,6]]
-                   )
+                   incProgress(0.25)
+                   if ("message" %in% names(sequence)) {
+                     if (grepl("Provided transcript_id not found", sequence[1]$message)) {
+                       ## substitute with shiny dialog
+                       message("Provided transcript id not found.")
+                       showModal(modalDialog(
+                         title = "Transcript ID not found.",
+                         HTML("Please provide a valid Ensembl transcript ID.")
+                       ))
+                     } else if ("Bad Request (HTTP 400)." %in% sequence[1]$message) {
+                       sequenceb <- tryCatch(
+                         get_flanking_genomic(
+                           rvens$data,
+                           useMart("ensembl", dataset = speciesdata),
+                           "https://rest.ensembl.org",
+                           specieslaturl,
+                           flankSize = 200
+                         ),
+                         error = function(e)
+                           e
+                       )
+                       incProgress(0.25)
+                       if ("message" %in% names(sequenceb)) {
+                         showModal(modalDialog(
+                           title = "Error with automatic fetching occured",
+                           HTML(
+                             "Retrieving a target sequence using the Ensembl transcript ID is currently not possible. <br> <br> You can still use the direct sequence input to define your target. <br> <br> For further questions regarding the functionality of the online tool you can contact us at k.gubicza (at) zmbh.uni-heidelberg.de."
+                           )
+                         ))
+                         message("Error with automatic fetching occured.")
+                       } else {
+                         message("Valid Ensembl ID")
+                         updateTextInput(session,
+                                         "inp_target",
+                                         value = sequenceb[1])
+                         updateTextInput(session,
+                                         "genename",
+                                         value = get_transcripts(
+                                           rvens$data,
+                                           useMart("ensembl", dataset = speciesdata)
+                                         )[[1, 5]])
+                         incProgress(0.25)
+                         output$ensfeedback <- renderText({
+                           paste(speciesname,
+                                 get_transcripts(
+                                   rvens$data,
+                                   useMart("ensembl", dataset = speciesdata)
+                                 )[[1, 5]],
+                                 sep = ", ")
+                         })
+                       }
+                     } else {
+                       ## substitute with shiny dialog
+                       showModal(modalDialog(
+                         title = "Error with automatic fetching occured",
+                         HTML(
+                           "Retrieving a target sequence using the Ensembl transcript ID is currently not possible. <br> <br> You can still use the direct sequence input to define your target. <br> <br> For further questions regarding the functionality of the online tool you can contact us at k.gubicza (at) zmbh.uni-heidelberg.de."
+                         )
+                       ))
+                       message("Error with automatic fetching occured")
+                     }
+                   } else {
+                     ## ... code for primer identification...
+                     message("Valid Ensembl ID")
+                     
+                     updateTextInput(session,
+                                     "inp_target",
+                                     value = sequence[1])
+                     updateTextInput(session,
+                                     "genename",
+                                     value = get_transcripts(rvens$data,
+                                                             useMart("ensembl", dataset = speciesdata))[[1, 5]])
+                     incProgress(0.25)
+                     output$ensfeedback <- renderText({
+                       paste(speciesname,
+                             get_transcripts(
+                               rvens$data,
+                               useMart("ensembl", dataset = speciesdata)
+                             )[[1, 5]],
+                             sep = ", ")
+                     })
+                   }
                    # Increment the progress bar, and update the detail text.
                    incProgress(1, detail = paste("Completed"))
-})
-                   })
+                 })
+               })
   observeEvent(input$linktotemplates, {
     updateNavbarPage(session, "home", "Template cassettes")
   })
@@ -898,7 +1142,7 @@ server <- function(input, output, session)
                        rvc$data,
                        targetseq(),
                        rvei$data)
-        } else if ("AsCpf1_TTTV" %in% rvc$data) {
+        } else {
           astttv <<-
             lookforpam("AsCpf1_TTTV",
                        "TTTV",
@@ -999,7 +1243,7 @@ server <- function(input, output, session)
               "distance",
               "sort",
               "cpf")
-          allpamm = as.data.frame(allpamm)
+          allpamm <- as.data.frame(allpamm)
           if (length(allpammd) > 0) {
             for (i in (1:(length(allpammd)))) {
               allpamm$start[i] <- allpammd@ranges@start[i]
@@ -1100,14 +1344,10 @@ server <- function(input, output, session)
             }
             if (sortedallpam$cpf[i] == "Lb") {
               dr[i] <-
-                gsub("U", "T", as.character(reverseComplement(RNAString(
-                  drs[drs$Name == "LbCas12a", 2]
-                ))))
+                gsub("U", "T", as.character(reverseComplement(RNAString(drs[drs$Name == "LbCas12a", 2]))))
             } else if (sortedallpam$cpf[i] == "As") {
               dr[i] <-
-                gsub("U", "T", as.character(reverseComplement(RNAString(
-                  drs[drs$Name == "AsCas12a", 2]
-                ))))
+                gsub("U", "T", as.character(reverseComplement(RNAString(drs[drs$Name == "AsCas12a", 2]))))
             }
             # Oligos with lower rank numbers are considered to be more suitable for gene tagging.            if (grepl("AAAA", paste0(crRNAs[i], dr[i]))) {
             if (grepl("AAAA", paste0(crRNAs[i], dr[i]))) {
@@ -1139,1922 +1379,1972 @@ server <- function(input, output, session)
             summary # Output table for .xlsx and .csv download
           withProgress(message = 'Computing...', value = 0, {
             # Number of times we'll go through the loop
-          for (i in (1:pamnumber)) {
-            # Each row contains one reverse oligo and the information about it
-            if (countPattern(DNAString(sortedallpam$PAM[i]),
-                             DNAString("TYYV"),
-                             fixed = F) > 0 &
-                ("LbCpf1_TYCV"  %in% rvc$data)) {
-              cpfname[i] <- "LbCpf1_TYCV"
-              sugname[i] <- paste0("M2_", rvg$data, "_", cpfname[i])
-              dr[i] <-
-                gsub("U", "T", as.character(reverseComplement(RNAString(drs[drs$Name == "LbCas12a", 2]))))
-              crRNAdr[i] <-
-                gsub("T", "U", reverseComplement(DNAString(dr[i])))
-            }
-            if (countPattern(DNAString(sortedallpam$PAM[i]),
-                             DNAString("TTTV"),
-                             fixed = F) > 0 &
-                ("LbCpf1_TTTV"  %in% rvc$data) &
-                ("LbCpf1_TYCV"  %in% rvc$data)) {
-              cpfname[i] <- "LbCpf1_TTTV/LbCpf1_TYCV"
-              sugname[i] <-
-                paste0("M2_", rvg$data, "_", "LbCpf1_TTTV")
-              dr[i] <-
-                gsub("U", "T", as.character(reverseComplement(RNAString(drs[drs$Name == "LbCas12a", 2]))))
-              crRNAdr[i] <-
-                gsub("T", "U", reverseComplement(DNAString(dr[i])))
-            }
-            if (countPattern(DNAString(sortedallpam$PAM[i]),
-                             DNAString("TTTV"),
-                             fixed = F) > 0 &
-                ("LbCpf1_TTTV"  %in% rvc$data) &
-                ("LbCpf1_TYCV"  %ni% rvc$data)) {
-              cpfname[i] <- "LbCpf1_TTTV"
-              sugname[i] <- paste0("M2_", rvg$data, "_", cpfname[i])
-              dr[i] <-
-                gsub("U", "T", as.character(reverseComplement(RNAString(drs[drs$Name == "LbCas12a", 2]))))
-              crRNAdr[i] <-
-                gsub("T", "U", reverseComplement(DNAString(dr[i])))
-            }
-            if (countPattern(DNAString(sortedallpam$PAM[i]),
-                             DNAString("TTTV"),
-                             fixed = F) > 0 &
-                ("AsCpf1_TTTV"  %in% rvc$data)  &
-                sortedallpam$cpf[i] == "As_TTTV") {
-              cpfname[i] <- "AsCpf1_TTTV"
-              sugname[i] <- paste0("M2_", rvg$data, "_", cpfname[i])
-              dr[i] <-
-                gsub("U", "T", as.character(reverseComplement(RNAString(drs[drs$Name == "AsCas12a", 2]))))
-              crRNAdr[i] <-
-                gsub("T", "U", reverseComplement(DNAString(dr[i])))
-            }
-            if (countPattern(DNAString(sortedallpam$PAM[i]),
-                             DNAString("TTTV"),
-                             fixed = F) > 0 &
-                ("AsCpf1_TATV"  %in% rvc$data)  &
-                ("AsCpf1_TYCV"  %ni% rvc$data) &
-                sortedallpam$cpf[i] == "As_TTTV") {
-              cpfname[i] <- "AsCpf1_TATV"
-              sugname[i] <- paste0("M2_", rvg$data, "_", cpfname[i])
-              dr[i] <-
-                gsub("U", "T", as.character(reverseComplement(RNAString(drs[drs$Name == "AsCas12a", 2]))))
-              crRNAdr[i] <-
-                gsub("T", "U", reverseComplement(DNAString(dr[i])))
-            }
-            if (countPattern(DNAString(sortedallpam$PAM[i]),
-                             DNAString("TTTV"),
-                             fixed = F) > 0 &
-                ("AsCpf1_TATV"  %ni% rvc$data)  &
-                ("AsCpf1_TYCV"  %in% rvc$data) &
-                sortedallpam$cpf[i] == "As_TTTV") {
-              cpfname[i] <- "AsCpf1_TYCV"
-              sugname[i] <- paste0("M2_", rvg$data, "_", cpfname[i])
-              dr[i] <-
-                gsub("U", "T", as.character(reverseComplement(RNAString(drs[drs$Name == "AsCas12a", 2]))))
-              crRNAdr[i] <-
-                gsub("T", "U", reverseComplement(DNAString(dr[i])))
-            }
-            if (countPattern(DNAString(sortedallpam$PAM[i]),
-                             DNAString("TTTV"),
-                             fixed = F) > 0 &
-                ("AsCpf1_TATV"  %in% rvc$data)  &
-                ("AsCpf1_TYCV"  %in% rvc$data) &
-                ("AsCpf1_TTTV"  %ni% rvc$data) &
-                sortedallpam$cpf[i] == "As_TTTV") {
-              cpfname[i] <- "AsCpf1_TATV/AsCpf1_TYCV"
-              sugname[i] <-
-                paste0("M2_", rvg$data, "_", "AsCpf1_TTTV")
-              dr[i] <-
-                gsub("U", "T", as.character(reverseComplement(RNAString(drs[drs$Name == "AsCas12a", 2]))))
-              crRNAdr[i] <-
-                gsub("T", "U", reverseComplement(DNAString(dr[i])))
-            }
-            if (countPattern(DNAString(sortedallpam$PAM[i]),
-                             DNAString("TTTV"),
-                             fixed = F) > 0 &
-                ("AsCpf1_TATV"  %in% rvc$data)  &
-                ("AsCpf1_TYCV"  %in% rvc$data) &
-                ("AsCpf1_TTTV"  %in% rvc$data) &
-                sortedallpam$cpf[i] == "As_TTTV") {
-              cpfname[i] <- "AsCpf1_TTTV/AsCpf1_TATV/AsCpf1_TYCV"
-              sugname[i] <-
-                paste0("M2_", rvg$data, "_", "AsCpf1_TTTV")
-              dr[i] <-
-                gsub("U", "T", as.character(reverseComplement(RNAString(drs[drs$Name == "AsCas12a", 2]))))
-              crRNAdr[i] <-
-                gsub("T", "U", reverseComplement(DNAString(dr[i])))
-            }
-            if (countPattern(DNAString(sortedallpam$PAM[i]),
-                             DNAString("TTTV"),
-                             fixed = F) > 0 &
-                ("AsCpf1_TATV"  %ni% rvc$data)  &
-                ("AsCpf1_TYCV"  %in% rvc$data) &
-                ("AsCpf1_TTTV"  %in% rvc$data) &
-                sortedallpam$cpf[i] == "As_TTTV") {
-              cpfname[i] <- "AsCpf1_TTTV/AsCpf1_TYCV"
-              sugname[i] <-
-                paste0("M2_", rvg$data, "_", "AsCpf1_TTTV")
-              dr[i] <-
-                gsub("U", "T", as.character(reverseComplement(RNAString(drs[drs$Name == "AsCas12a", 2]))))
-              crRNAdr[i] <-
-                gsub("T", "U", reverseComplement(DNAString(dr[i])))
-            }
-            if (countPattern(DNAString(sortedallpam$PAM[i]),
-                             DNAString("TTTV"),
-                             fixed = F) > 0 &
-                ("AsCpf1_TATV"  %in% rvc$data)  &
-                ("AsCpf1_TYCV"  %ni% rvc$data) &
-                ("AsCpf1_TTTV"  %in% rvc$data) &
-                sortedallpam$cpf[i] == "As_TTTV") {
-              cpfname[i] <- "AsCpf1_TTTV/AsCpf1_TATV"
-              sugname[i] <-
-                paste0("M2_", rvg$data, "_", "AsCpf1_TTTV")
-              dr[i] <-
-                gsub("U", "T", as.character(reverseComplement(RNAString(drs[drs$Name == "AsCas12a", 2]))))
-              crRNAdr[i] <-
-                gsub("T", "U", reverseComplement(DNAString(dr[i])))
-            }
-            if (countPattern(DNAString(sortedallpam$PAM[i]),
-                             DNAString("TYCV"),
-                             fixed = F) > 0 &
-                ("AsCpf1_TYCV"  %in% rvc$data)  &
-                sortedallpam$cpf[i] == "As_TYCV") {
-              cpfname[i] <- "AsCpf1_TYCV"
-              sugname[i] <- paste0("M2_", rvg$data, "_", cpfname[i])
-              dr[i] <-
-                gsub("U", "T", as.character(reverseComplement(RNAString(drs[drs$Name == "AsCas12a", 2]))))
-              crRNAdr[i] <-
-                gsub("T", "U", reverseComplement(DNAString(dr[i])))
-            }
-            if (countPattern(DNAString(sortedallpam$PAM[i]),
-                             DNAString("MCCC"),
-                             fixed = F) > 0 &
-                ("AsCpf1_TYCV"  %in% rvc$data)  &
-                sortedallpam$cpf[i] == "As_MCCC") {
-              cpfname[i] <- "AsCpf1_TYCV"
-              sugname[i] <- paste0("M2_", rvg$data, "_", cpfname[i])
-              dr[i] <-
-                gsub("U", "T", as.character(reverseComplement(RNAString(drs[drs$Name == "AsCas12a", 2]))))
-              crRNAdr[i] <-
-                gsub("T", "U", reverseComplement(DNAString(dr[i])))
-            }
-            if (countPattern(DNAString(sortedallpam$PAM[i]),
-                             DNAString("TATV"),
-                             fixed = F) > 0 &
-                ("AsCpf1_TATV"  %in% rvc$data)  &
-                sortedallpam$cpf[i] == "As_TATV") {
-              cpfname[i] <- "AsCpf1_TATV"
-              sugname[i] <- paste0("M2_", rvg$data, "_", cpfname[i])
-              dr[i] <-
-                gsub("U", "T", as.character(reverseComplement(RNAString(drs[drs$Name == "AsCas12a", 2]))))
-              crRNAdr[i] <-
-                gsub("T", "U", reverseComplement(DNAString(dr[i])))
-            }
-            if (countPattern(DNAString(sortedallpam$PAM[i]),
-                             DNAString("RATR"),
-                             fixed = F) > 0 &
-                ("AsCpf1_TATV"  %in% rvc$data)  &
-                sortedallpam$cpf[i] == "As_RATR") {
-              cpfname[i] <- "AsCpf1_TATV"
-              sugname[i] <- paste0("M2_", rvg$data, "_", cpfname[i])
-              dr[i] <-
-                gsub("U", "T", as.character(reverseComplement(RNAString(drs[drs$Name == "AsCas12a", 2]))))
-              crRNAdr[i] <-
-                gsub("T", "U", reverseComplement(DNAString(dr[i])))
-            }
-            if (countPattern(DNAString(sortedallpam$PAM[i]),
-                             DNAString(rvpam$data),
-                             fixed = F > 0) &
-                "Other"  %in% rvc$data) {
-              cpfname[i] <-
-                paste(rvname$data, sep = "_")
-              sugname[i] <- paste0("M2_", rvg$data, "_", cpfname[i])
-              dr[i] <-
-                gsub("U", "T", as.character(reverseComplement(RNAString(
-                  rvdr$data
-                ))))
-              crRNAdr[i] <-
-                gsub("T", "U", reverseComplement(DNAString(dr[i])))
-            }
-            if (i == 1) {
-              allpamcrrna <-
-                DNAStringSet(paste0(
-                  sortedallpam$PAM[i],
-                  as.character(reverseComplement(DNAString(
-                    crRNAs[i]
+            for (i in (1:pamnumber)) {
+              # Each row contains one reverse oligo and the information about it
+              if (countPattern(DNAString(sortedallpam$PAM[i]),
+                               DNAString("TYYV"),
+                               fixed = F) > 0 &
+                  ("LbCpf1_TYCV"  %in% rvc$data)) {
+                cpfname[i] <- "LbCpf1_TYCV"
+                sugname[i] <-
+                  paste0("M2_", rvg$data, "_", cpfname[i])
+                dr[i] <-
+                  gsub("U", "T", as.character(reverseComplement(RNAString(
+                    drs[drs$Name == "LbCas12a", 2]
+                  ))))
+                crRNAdr[i] <-
+                  gsub("T", "U", reverseComplement(DNAString(dr[i])))
+              }
+              if (countPattern(DNAString(sortedallpam$PAM[i]),
+                               DNAString("TTTV"),
+                               fixed = F) > 0 &
+                  ("LbCpf1_TTTV"  %in% rvc$data) &
+                  ("LbCpf1_TYCV"  %in% rvc$data)) {
+                cpfname[i] <- "LbCpf1_TTTV/LbCpf1_TYCV"
+                sugname[i] <-
+                  paste0("M2_", rvg$data, "_", cpfname[i])
+                dr[i] <-
+                  gsub("U", "T", as.character(reverseComplement(RNAString(
+                    drs[drs$Name == "LbCas12a", 2]
+                  ))))
+                crRNAdr[i] <-
+                  gsub("T", "U", reverseComplement(DNAString(dr[i])))
+              }
+              if (countPattern(DNAString(sortedallpam$PAM[i]),
+                               DNAString("TTTV"),
+                               fixed = F) > 0 &
+                  ("LbCpf1_TTTV"  %in% rvc$data) &
+                  ("LbCpf1_TYCV"  %ni% rvc$data)) {
+                cpfname[i] <- "LbCpf1_TTTV"
+                sugname[i] <-
+                  paste0("M2_", rvg$data, "_", cpfname[i])
+                dr[i] <-
+                  gsub("U", "T", as.character(reverseComplement(RNAString(
+                    drs[drs$Name == "LbCas12a", 2]
+                  ))))
+                crRNAdr[i] <-
+                  gsub("T", "U", reverseComplement(DNAString(dr[i])))
+              }
+              if (countPattern(DNAString(sortedallpam$PAM[i]),
+                               DNAString("TTTV"),
+                               fixed = F) > 0 &
+                  ("AsCpf1_TTTV"  %in% rvc$data)  &
+                  sortedallpam$cpf[i] == "As_TTTV") {
+                cpfname[i] <- "AsCpf1_TTTV"
+                sugname[i] <-
+                  paste0("M2_", rvg$data, "_", cpfname[i])
+                dr[i] <-
+                  gsub("U", "T", as.character(reverseComplement(RNAString(
+                    drs[drs$Name == "AsCas12a", 2]
+                  ))))
+                crRNAdr[i] <-
+                  gsub("T", "U", reverseComplement(DNAString(dr[i])))
+              }
+              if (countPattern(DNAString(sortedallpam$PAM[i]),
+                               DNAString("TTTV"),
+                               fixed = F) > 0 &
+                  ("AsCpf1_TATV"  %in% rvc$data)  &
+                  ("AsCpf1_TYCV"  %ni% rvc$data) &
+                  sortedallpam$cpf[i] == "As_TTTV") {
+                cpfname[i] <- "AsCpf1_TATV"
+                sugname[i] <-
+                  paste0("M2_", rvg$data, "_", cpfname[i])
+                dr[i] <-
+                  gsub("U", "T", as.character(reverseComplement(RNAString(
+                    drs[drs$Name == "AsCas12a", 2]
+                  ))))
+                crRNAdr[i] <-
+                  gsub("T", "U", reverseComplement(DNAString(dr[i])))
+              }
+              if (countPattern(DNAString(sortedallpam$PAM[i]),
+                               DNAString("TTTV"),
+                               fixed = F) > 0 &
+                  ("AsCpf1_TATV"  %ni% rvc$data)  &
+                  ("AsCpf1_TYCV"  %in% rvc$data) &
+                  sortedallpam$cpf[i] == "As_TTTV") {
+                cpfname[i] <- "AsCpf1_TYCV"
+                sugname[i] <-
+                  paste0("M2_", rvg$data, "_", cpfname[i])
+                dr[i] <-
+                  gsub("U", "T", as.character(reverseComplement(RNAString(
+                    drs[drs$Name == "AsCas12a", 2]
+                  ))))
+                crRNAdr[i] <-
+                  gsub("T", "U", reverseComplement(DNAString(dr[i])))
+              }
+              if (countPattern(DNAString(sortedallpam$PAM[i]),
+                               DNAString("TTTV"),
+                               fixed = F) > 0 &
+                  ("AsCpf1_TATV"  %in% rvc$data)  &
+                  ("AsCpf1_TYCV"  %in% rvc$data) &
+                  ("AsCpf1_TTTV"  %ni% rvc$data) &
+                  sortedallpam$cpf[i] == "As_TTTV") {
+                cpfname[i] <- "AsCpf1_TATV/AsCpf1_TYCV"
+                sugname[i] <-
+                  paste0("M2_", rvg$data, "_", cpfname[i])
+                dr[i] <-
+                  gsub("U", "T", as.character(reverseComplement(RNAString(
+                    drs[drs$Name == "AsCas12a", 2]
+                  ))))
+                crRNAdr[i] <-
+                  gsub("T", "U", reverseComplement(DNAString(dr[i])))
+              }
+              if (countPattern(DNAString(sortedallpam$PAM[i]),
+                               DNAString("TTTV"),
+                               fixed = F) > 0 &
+                  ("AsCpf1_TATV"  %in% rvc$data)  &
+                  ("AsCpf1_TYCV"  %in% rvc$data) &
+                  ("AsCpf1_TTTV"  %in% rvc$data) &
+                  sortedallpam$cpf[i] == "As_TTTV") {
+                cpfname[i] <- "AsCpf1_TTTV/AsCpf1_TATV/AsCpf1_TYCV"
+                sugname[i] <-
+                  paste0("M2_", rvg$data, "_", cpfname[i])
+                dr[i] <-
+                  gsub("U", "T", as.character(reverseComplement(RNAString(
+                    drs[drs$Name == "AsCas12a", 2]
+                  ))))
+                crRNAdr[i] <-
+                  gsub("T", "U", reverseComplement(DNAString(dr[i])))
+              }
+              if (countPattern(DNAString(sortedallpam$PAM[i]),
+                               DNAString("TTTV"),
+                               fixed = F) > 0 &
+                  ("AsCpf1_TATV"  %ni% rvc$data)  &
+                  ("AsCpf1_TYCV"  %in% rvc$data) &
+                  ("AsCpf1_TTTV"  %in% rvc$data) &
+                  sortedallpam$cpf[i] == "As_TTTV") {
+                cpfname[i] <- "AsCpf1_TTTV/AsCpf1_TYCV"
+                sugname[i] <-
+                  paste0("M2_", rvg$data, "_", cpfname[i])
+                dr[i] <-
+                  gsub("U", "T", as.character(reverseComplement(RNAString(
+                    drs[drs$Name == "AsCas12a", 2]
+                  ))))
+                crRNAdr[i] <-
+                  gsub("T", "U", reverseComplement(DNAString(dr[i])))
+              }
+              if (countPattern(DNAString(sortedallpam$PAM[i]),
+                               DNAString("TTTV"),
+                               fixed = F) > 0 &
+                  ("AsCpf1_TATV"  %in% rvc$data)  &
+                  ("AsCpf1_TYCV"  %ni% rvc$data) &
+                  ("AsCpf1_TTTV"  %in% rvc$data) &
+                  sortedallpam$cpf[i] == "As_TTTV") {
+                cpfname[i] <- "AsCpf1_TTTV/AsCpf1_TATV"
+                sugname[i] <-
+                  paste0("M2_", rvg$data, "_", cpfname[i])
+                dr[i] <-
+                  gsub("U", "T", as.character(reverseComplement(RNAString(
+                    drs[drs$Name == "AsCas12a", 2]
+                  ))))
+                crRNAdr[i] <-
+                  gsub("T", "U", reverseComplement(DNAString(dr[i])))
+              }
+              if (countPattern(DNAString(sortedallpam$PAM[i]),
+                               DNAString("TYCV"),
+                               fixed = F) > 0 &
+                  ("AsCpf1_TYCV"  %in% rvc$data)  &
+                  sortedallpam$cpf[i] == "As_TYCV") {
+                cpfname[i] <- "AsCpf1_TYCV"
+                sugname[i] <-
+                  paste0("M2_", rvg$data, "_", cpfname[i])
+                dr[i] <-
+                  gsub("U", "T", as.character(reverseComplement(RNAString(
+                    drs[drs$Name == "AsCas12a", 2]
+                  ))))
+                crRNAdr[i] <-
+                  gsub("T", "U", reverseComplement(DNAString(dr[i])))
+              }
+              if (countPattern(DNAString(sortedallpam$PAM[i]),
+                               DNAString("MCCC"),
+                               fixed = F) > 0 &
+                  ("AsCpf1_TYCV"  %in% rvc$data)  &
+                  sortedallpam$cpf[i] == "As_MCCC") {
+                cpfname[i] <- "AsCpf1_TYCV"
+                sugname[i] <-
+                  paste0("M2_", rvg$data, "_", cpfname[i])
+                dr[i] <-
+                  gsub("U", "T", as.character(reverseComplement(RNAString(
+                    drs[drs$Name == "AsCas12a", 2]
+                  ))))
+                crRNAdr[i] <-
+                  gsub("T", "U", reverseComplement(DNAString(dr[i])))
+              }
+              if (countPattern(DNAString(sortedallpam$PAM[i]),
+                               DNAString("TATV"),
+                               fixed = F) > 0 &
+                  ("AsCpf1_TATV"  %in% rvc$data)  &
+                  sortedallpam$cpf[i] == "As_TATV") {
+                cpfname[i] <- "AsCpf1_TATV"
+                sugname[i] <-
+                  paste0("M2_", rvg$data, "_", cpfname[i])
+                dr[i] <-
+                  gsub("U", "T", as.character(reverseComplement(RNAString(
+                    drs[drs$Name == "AsCas12a", 2]
+                  ))))
+                crRNAdr[i] <-
+                  gsub("T", "U", reverseComplement(DNAString(dr[i])))
+              }
+              if (countPattern(DNAString(sortedallpam$PAM[i]),
+                               DNAString("RATR"),
+                               fixed = F) > 0 &
+                  ("AsCpf1_TATV"  %in% rvc$data)  &
+                  sortedallpam$cpf[i] == "As_RATR") {
+                cpfname[i] <- "AsCpf1_TATV"
+                sugname[i] <-
+                  paste0("M2_", rvg$data, "_", cpfname[i])
+                dr[i] <-
+                  gsub("U", "T", as.character(reverseComplement(RNAString(
+                    drs[drs$Name == "AsCas12a", 2]
+                  ))))
+                crRNAdr[i] <-
+                  gsub("T", "U", reverseComplement(DNAString(dr[i])))
+              }
+              if (countPattern(DNAString(sortedallpam$PAM[i]),
+                               DNAString(rvpam$data),
+                               fixed = F > 0) &
+                  "Other"  %in% rvc$data &
+                  sortedallpam$cpf[i] == "other") {
+                cpfname[i] <-
+                  paste(rvname$data, sep = "_")
+                sugname[i] <-
+                  paste0("M2_", rvg$data, "_", cpfname[i])
+                dr[i] <-
+                  gsub("U", "T", as.character(reverseComplement(RNAString(
+                    rvdr$data
+                  ))))
+                crRNAdr[i] <-
+                  gsub("T", "U", reverseComplement(DNAString(dr[i])))
+              }
+              if (i == 1) {
+                allpamcrrna <-
+                  DNAStringSet(paste0(
+                    sortedallpam$PAM[i],
+                    as.character(reverseComplement(DNAString(
+                      crRNAs[i]
+                    )))
+                  ))
+              } else {
+                allpamcrrna <-
+                  c(allpamcrrna, DNAStringSet(paste0(
+                    sortedallpam$PAM[i],
+                    as.character(reverseComplement(DNAString(
+                      crRNAs[i]
+                    )))
                   )))
-                ))
-            } else {
-              allpamcrrna <-
-                c(allpamcrrna, DNAStringSet(paste0(
-                  sortedallpam$PAM[i],
-                  as.character(reverseComplement(DNAString(
-                    crRNAs[i]
-                  )))
-                )))
-            }
-            summary$`Cas12a (Cpf1)`[i] <-
-              cpfname[i] # Cas 12a plasmid name
-            summary$PAM[i] <- paste(sortedallpam$PAM[i])
-            summary$`crRNA (direct repeat + spacer)`[i] <-
-              paste(
-                '<span style = "text-decoration: underline; color:orange; text-decoration-color: black;">',
-                as.character(crRNAdr[i]),
-                '</span>',
-                '<span style = "color:orange">',
-                gsub("T", "U", reverseComplement(DNAString(
-                  crRNAs[i]
-                ))),
-                '</span>',
-                sep = ""
-              )
-            summary$`Suggested name`[i] <- sugname[i]
-            if ((sortedallpam$strand[i] == "direct") |
-                (sortedallpam$strand[i] == "reverse")) {
-              if (input$phospho == 1) {
-                modha <- ""
-                for (j in (1:rvpn$data)) {
-                  modelement <- paste0(as.character(reverseComplement(
-                    DNAString(targetseq())[(200 + 4 + rvthree$data - 1 - j + 1)]
-                  )), "*")
-                  modha <- paste0(modha, modelement)
-                }
-                modharest <-
-                  as.character(reverseComplement(DNAString(targetseq())[(200 + 4):(200 + 4 + rvthree$data - 1 - rvpn$data)]))
-                summary$Sequence[i] <-
-                  paste0(
-                    '<span style = "color:CornflowerBlue ">',
-                    modha,
-                    modharest,
-                    '</span>',
-                    '<span style = "color:brown">',
-                    "AAAAAA",
-                    '</span>',
-                    '<span style = "color:orange">',
-                    crRNAs[i],
-                    '</span>',
-                    '<span style = "text-decoration: underline; color:orange; text-decoration-color: black;">',
-                    dr[i],
-                    '</span>',
-                    '<span style = "color:grey">',
-                    "GCTAGCTGCATCGGTACC",
-                    '</span>'
-                  )
-              } else {
-                summary$Sequence[i] <-  # Reverse oligo sequence
-                  paste0(
-                    '<span style = "color:CornflowerBlue ">',
-                    as.character(reverseComplement(DNAString(
-                      targetseq()
-                    )[(200 + 4):(200 + 4 + rvthree$data - 1)])),
-                    '</span>',
-                    '<span style = "color:brown">',
-                    "AAAAAA",
-                    '</span>',
-                    '<span style = "color:orange">',
-                    crRNAs[i],
-                    '</span>',
-                    '<span style = "text-decoration: underline; color:orange; text-decoration-color: black;">',
-                    dr[i],
-                    '</span>',
-                    '<span style = "color:grey">',
-                    "GCTAGCTGCATCGGTACC",
-                    '</span>'
-                  )
               }
-              summary$Strand[i] <-
-                # PAM site found on the direct or reverse strand
-                paste(as.character(sortedallpam$strand[i]))
-            }
-            else if (sortedallpam$strand[i] == "direct*") {
-              summary$Strand[i] <- "direct"
-              if (input$phospho == 1) {
-                modha <- ""
-                for (j in (1:rvpn$data)) {
-                  modelement <- paste0(as.character(reverseComplement(
-                    DNAString(targetseq())[(
-                      sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 200 + nchar(crRNAs[i]) + rvthree$data - 1 - j + 1
-                    )]
-                  )), "*")
-                  modha <- paste0(modha, modelement)
-                }
-                modharest <-
-                  as.character(reverseComplement(DNAString(targetseq())[(
-                    sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 200 + nchar(crRNAs[i])
-                  ):(
-                    sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 200 + nchar(crRNAs[i]) + rvthree$data - 1 - rvpn$data
-                  )]))
-                summary$Sequence[i] <-
-                  paste0(
-                    '<span style = "color:CornflowerBlue ">',
-                    modha,
-                    modharest,
-                    '</span>',
-                    '<span style = "color:brown">',
-                    "AAAAAA",
-                    '</span>',
-                    '<span style = "color:orange">',
-                    crRNAs[i],
-                    '</span>',
-                    '<span style = "text-decoration: underline; color:orange; text-decoration-color: black;">',
-                    dr[i],
-                    '</span>',
-                    '<span style = "color:grey">',
-                    "GCTAGCTGCATCGGTACC",
-                    '</span>'
-                  )
-              } else {
-                summary$Sequence[i] <-
-                  paste0(
-                    '<span style = "color:CornflowerBlue ">',
-                    as.character(reverseComplement(DNAString(
-                      targetseq()
-                    )[(
-                      sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 200 + nchar(crRNAs[i])
-                    ):(
-                      sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 200 + nchar(crRNAs[i]) + rvthree$data - 1
-                    )])),
-                    '</span>',
-                    '<span style = "color:brown">',
-                    "AAAAAA",
-                    '</span>',
-                    '<span style = "color:orange">',
-                    crRNAs[i],
-                    '</span>',
-                    '<span style = "text-decoration: underline; color:orange; text-decoration-color: black;">',
-                    dr[i],
-                    '</span>',
-                    '<span style = "color:grey">',
-                    "GCTAGCTGCATCGGTACC",
-                    '</span>'
-                  )
-              }
-            } else if (sortedallpam$strand[i] == "reverse*") {
-              summary$Strand[i] <- "reverse"
-              if (input$phospho == 1) {
-                modha <- ""
-                for (j in (1:rvpn$data)) {
-                  modelement <- paste0(as.character(reverseComplement(
-                    DNAString(targetseq())[(
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2 + rvthree$data - 1 - j + 1
-                    )]
-                  )), "*")
-                  modha <- paste0(modha, modelement)
-                }
-                modharest <-
-                  as.character(reverseComplement(DNAString(targetseq())[(203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2):(
-                    203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2 + rvthree$data - 1 - rvpn$data
-                  )]))
-                summary$Sequence[i] <-
-                  paste0(
-                    '<span style = "color:CornflowerBlue ">',
-                    modha,
-                    modharest,
-                    '</span>',
-                    '<span style = "color:brown">',
-                    "AAAAAA",
-                    '</span>',
-                    '<span style = "color:orange">',
-                    crRNAs[i],
-                    '</span>',
-                    '<span style = "text-decoration: underline; color:orange; text-decoration-color: black;">',
-                    dr[i],
-                    '</span>',
-                    '<span style = "color:grey">',
-                    "GCTAGCTGCATCGGTACC",
-                    '</span>'
-                  )
-              } else {
-                summary$Sequence[i] <-
-                  paste0(
-                    '<span style = "color:CornflowerBlue ">',
-                    as.character(reverseComplement(DNAString(
-                      targetseq()
-                    )[(203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2):(
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2 + rvthree$data - 1
-                    )])),
-                    '</span>',
-                    '<span style = "color:brown">',
-                    "AAAAAA",
-                    '</span>',
-                    '<span style = "color:orange">',
-                    crRNAs[i],
-                    '</span>',
-                    '<span style = "text-decoration: underline; color:orange; text-decoration-color: black;">',
-                    dr[i],
-                    '</span>',
-                    '<span style = "color:grey">',
-                    "GCTAGCTGCATCGGTACC",
-                    '</span>'
-                  )
-              }
-            }
-            summary$Length[i] <- # Length of the revers oligo (nt)
-              paste(format(round(nchar(
+              summary$`Cas12a (Cpf1)`[i] <-
+                cpfname[i] # Cas 12a plasmid name
+              summary$PAM[i] <- paste(sortedallpam$PAM[i])
+              summary$`crRNA (direct repeat + spacer)`[i] <-
                 paste(
-                  as.character(reverseComplement(DNAString(
-                    targetseq()
-                  )[(200 + 4):(200 + 4 + rvthree$data - 1)])),
-                  "AAAAAA",
-                  crRNAs[i],
-                  dr[i],
-                  "GCTAGCTGCATCGGTACC",
+                  '<span style = "text-decoration: underline; color:orange; text-decoration-color: black;">',
+                  as.character(crRNAdr[i]),
+                  '</span>',
+                  '<span style = "color:orange">',
+                  gsub("T", "U", reverseComplement(DNAString(
+                    crRNAs[i]
+                  ))),
+                  '</span>',
                   sep = ""
                 )
-              ), 0), nsmall = 0), "nt", sep = "&nbsp")
-            stopstart <- (17 + 10 + 1)
-            stopend <- (17 + 10 + 3)
-            
-            # Target sequence formatting ----------------------------------------------------------------------
-            
-            # For the formatted visualization of the target sequence with the PAM site, the cleavage site and the overhangs, the sequence was divided into
-            # several sections, which were defined according to the cleavage site location in each case
-            if (as.character(sortedallpam$strand[i] == "direct")) {
-              regionds <- paste0(
-                as.character(ntsstop()[1:(17 + 10)]),
-                '<span style = "font-weight:bold">',
-                (as.character(ntsstop()[(17 + 10 + 1):(17 + 3 + 10)])),
-                '</span>',
-                as.character(ntsstop()[(17 + 3 + 10 + 1):nchar(ntsstop())])
-              )
-              regiondr <- paste0(
-                as.character(complement(ntsstop()[1:(17 + 10)])),
-                strong(as.character(complement(
-                  ntsstop()[(17 + 10 + 1):(17 + 10 + 3)]
-                ))),
-                as.character(complement(ntsstop()[(17 + 3 + 10 + 1):nchar(ntsstop())]))
-              )
-              blackf <-
-                substr(ntsstop(), 1, (sortedallpam$start[i] + 10 - 1))
-              blackr <-
-                paste0(
-                  '<span style = "text-decoration: underline">',
-                  substr(
-                    ntsstop(),
-                    (
-                      sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + nchar(crRNAs[i])
-                    ),
-                    (
-                      sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + nchar(crRNAs[i]) + 2
+              summary$`Suggested name`[i] <- sugname[i]
+              if ((sortedallpam$strand[i] == "direct") |
+                  (sortedallpam$strand[i] == "reverse")) {
+                if (input$phospho == 1) {
+                  modha <- ""
+                  for (j in (1:rvpn$data)) {
+                    modelement <- paste0(as.character(reverseComplement(
+                      DNAString(targetseq())[(200 + 4 + rvthree$data - 1 - j + 1)]
+                    )), "*")
+                    modha <- paste0(modha, modelement)
+                  }
+                  modharest <-
+                    as.character(reverseComplement(DNAString(targetseq())[(200 + 4):(200 + 4 + rvthree$data - 1 - rvpn$data)]))
+                  summary$Sequence[i] <-
+                    paste0(
+                      '<span style = "color:CornflowerBlue ">',
+                      modha,
+                      modharest,
+                      '</span>',
+                      '<span style = "color:brown">',
+                      "AAAAAA",
+                      '</span>',
+                      '<span style = "color:orange">',
+                      crRNAs[i],
+                      '</span>',
+                      '<span style = "text-decoration: underline; color:orange; text-decoration-color: black;">',
+                      dr[i],
+                      '</span>',
+                      '<span style = "color:grey">',
+                      "GCTAGCTGCATCGGTACC",
+                      '</span>'
                     )
-                  ),
-                  '</span>',
-                  '<span style = "color:GhostWhite">',
-                  "_",
-                  '</span>',
-                  substr(
-                    ntsstop(),
-                    (
-                      sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + nchar(crRNAs[i]) + 3
-                    ),
-                    nchar(ntsstop())
-                  )
-                )
-              bluer <-
-                paste0(
-                  '<span style = "color:orange">',
-                  substr(
-                    ntsstop(),
-                    stopend + 1,
-                    (
-                      sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + nchar(crRNAs[i]) - 3
+                } else {
+                  summary$Sequence[i] <-  # Reverse oligo sequence
+                    paste0(
+                      '<span style = "color:CornflowerBlue ">',
+                      as.character(reverseComplement(
+                        DNAString(targetseq())[(200 + 4):(200 + 4 + rvthree$data - 1)]
+                      )),
+                      '</span>',
+                      '<span style = "color:brown">',
+                      "AAAAAA",
+                      '</span>',
+                      '<span style = "color:orange">',
+                      crRNAs[i],
+                      '</span>',
+                      '<span style = "text-decoration: underline; color:orange; text-decoration-color: black;">',
+                      dr[i],
+                      '</span>',
+                      '<span style = "color:grey">',
+                      "GCTAGCTGCATCGGTACC",
+                      '</span>'
                     )
-                  ),
-                  '</span>'
-                )
-              bluerr <-
-                paste0(
-                  '<span style = "color:orange; text-decoration: underline; text-decoration-color: black;">',
-                  substr(
-                    ntsstop(),
-                    (
-                      sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + nchar(crRNAs[i]) - 2
-                    ),
-                    (
-                      sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + nchar(crRNAs[i]) - 1
-                    )
-                  ),
-                  '</span>'
-                )
-              pamstart <-
-                sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) - 1
-              pamend <- 10 + 17
-              if (pamstart < pamend) {
-                MediumAquaMarine <-
-                  paste0(
-                    '<span style = "color:MediumAquaMarine">',
-                    substr(
-                      ntsstop(),
-                      (sortedallpam$start[i] + 10),
-                      (
-                        sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) - 1
-                      )
-                    ),
-                    '</span>'
-                  )
-                MediumAquaMarinebold <- ""
-                bluef <-
-                  paste0(
-                    '<span style = "color:orange">',
-                    substr(
-                      ntsstop(),
-                      (
-                        sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i])
-                      ),
-                      stopstart - 1
-                    ),
-                    '</span>'
-                  )
-                bluebold <-
-                  paste0(
-                    '<span style = "color:orange;font-weight:bold">',
-                    substr(ntsstop(), stopstart, stopend),
-                    '</span>'
-                  )
-              } else if (pamstart == pamend) {
-                MediumAquaMarine <-
-                  paste0(
-                    '<span style = "color:MediumAquaMarine">',
-                    substr(
-                      ntsstop(),
-                      (sortedallpam$start[i] + 10),
-                      (
-                        sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) - 1
-                      )
-                    ),
-                    '</span>'
-                  )
-                MediumAquaMarinebold <- ""
-                bluef <- ""
-                bluebold <-
-                  paste0(
-                    '<span style = "color:orange;font-weight:bold">',
-                    substr(ntsstop(), stopstart, stopend),
-                    '</span>'
-                  )
-              } else if (pamstart == pamend + 1) {
-                MediumAquaMarine <-
-                  paste0(
-                    '<span style = "color:MediumAquaMarine">',
-                    substr(
-                      ntsstop(),
-                      (sortedallpam$start[i] + 10),
-                      (stopstart - 1)
-                    ),
-                    '</span>'
-                  )
-                MediumAquaMarinebold <-
-                  paste0(
-                    '<span style = "color:MediumAquaMarine;font-weight:bold">',
-                    substr(ntsstop(), stopstart, stopstart),
-                    '</span>'
-                  )
-                bluef <- ""
-                bluebold <-
-                  paste0(
-                    '<span style = "color:orange;font-weight:bold">',
-                    substr(ntsstop(), stopstart + 1, stopend),
-                    '</span>'
-                  )
-              } else if (pamstart == pamend + 2) {
-                MediumAquaMarine <-
-                  paste0(
-                    '<span style = "color:MediumAquaMarine">',
-                    substr(
-                      ntsstop(),
-                      (sortedallpam$start[i] + 10),
-                      (stopstart - 1)
-                    ),
-                    '</span>'
-                  )
-                MediumAquaMarinebold <-
-                  paste0(
-                    '<span style = "color:MediumAquaMarine;font-weight:bold">',
-                    substr(ntsstop(), stopstart, stopstart + 1),
-                    '</span>'
-                  )
-                bluef <- ""
-                bluebold <-
-                  paste0(
-                    '<span style = "color:orange;font-weight:bold">',
-                    substr(ntsstop(), stopend, stopend),
-                    '</span>'
-                  )
-              } else if (pamstart == pamend + 3) {
-                MediumAquaMarine <-
-                  paste0(
-                    '<span style = "color:MediumAquaMarine">',
-                    substr(
-                      ntsstop(),
-                      (sortedallpam$start[i] + 10),
-                      (stopstart - 1)
-                    ),
-                    '</span>'
-                  )
-                MediumAquaMarinebold <-
-                  paste0(
-                    '<span style = "color:MediumAquaMarine;font-weight:bold">',
-                    substr(ntsstop(), stopstart, stopend),
-                    '</span>'
-                  )
-                bluef <- ""
-                bluebold <- ""
-              }
-              summary$Target[i] <-
-                paste0(
-                  paste0
-                  (
-                    blackf,
-                    MediumAquaMarine,
-                    MediumAquaMarinebold,
-                    bluef,
-                    bluebold,
-                    bluer,
-                    '<sup>&#9660;</sup>',
-                    bluerr,
-                    blackr
-                  ),
-                  '<br>',
-                  paste0(
-                    as.character(complement(ntsstop()[1:(stopstart - 1)])),
-                    strong(as.character(complement(
-                      ntsstop()[(stopstart):(stopend)]
-                    ))),
-                    as.character(complement(ntsstop()[(stopend + 1):(sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + nchar(crRNAs[i]) - 3)])),
-                    '<span style = "color:GhostWhite">',
-                    "_",
-                    '</span>',
-                    '<span style = "text-decoration: underline">',
-                    as.character(complement(ntsstop()[(sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + nchar(crRNAs[i]) - 2):(sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + 22)])),
-                    '</span>',
-                    '<sub>&#9650;</sub>',
-                    as.character(complement(ntsstop()[(sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + 23):nchar(ntsstop())]))
-                  )
-                )
-            }
-            else if (as.character(sortedallpam$strand[i] == "reverse")) {
-              blackr <-
-                paste0(
-                  as.character(complement(ntsstop()[1:(
-                    nchar(as.character(ntsstop())) - sortedallpam$start[i] - 10 + 1 - nchar(sortedallpam$PAM[i]) - nchar(crRNAs[i]) - 3
-                  )])),
-                  '<span style = "color:GhostWhite">',
-                  "_",
-                  '</span>',
-                  '<span style = "text-decoration: underline">',
-                  as.character(complement(ntsstop()[(
-                    nchar(as.character(ntsstop())) - sortedallpam$start[i] - 10 + 1 - nchar(sortedallpam$PAM[i]) - nchar(crRNAs[i]) - 2
-                  ):(
-                    nchar(as.character(ntsstop())) - sortedallpam$start[i] - 10 + 1 - nchar(sortedallpam$PAM[i]) - nchar(crRNAs[i])
-                  )])),
-                  '</span>'
-                )
-              bluerr <-
-                paste0(
-                  '<span style = "color:orange; text-decoration: underline; text-decoration-color: black;">',
-                  as.character(complement(ntsstop()[(
-                    nchar(as.character(ntsstop())) - sortedallpam$start[i] - 10 + 1 - nchar(sortedallpam$PAM[i]) - nchar(crRNAs[i]) + 1
-                  ):(
-                    nchar(as.character(ntsstop())) - sortedallpam$start[i] - 10 + 1 - nchar(sortedallpam$PAM[i])  - nchar(crRNAs[i]) + 2
-                  )])),
-                  '</span>'
-                )
-              bluer <-
-                paste0('<span style = "color:orange">',
-                       as.character(complement(ntsstop()[(
-                         nchar(as.character(ntsstop())) - sortedallpam$start[i] - 10 + 1 - nchar(sortedallpam$PAM[i]) - nchar(crRNAs[i]) + 2 + 1
-                       ):(stopstart - 1)])),
-                       '</span>')
-              blackf <-
-                as.character(complement(ntsstop()[(nchar(as.character(ntsstop())) - sortedallpam$start[i] - 10 + 2):nchar(ntsstop())]))
-              pamstart <-
-                (
-                  nchar(as.character(ntsstop())) - sortedallpam$start[i] - 10 + 1 - nchar(sortedallpam$PAM[i]) + 1
-                )
-              if (stopstart == pamstart) {
-                bluebold <- ""
-                bluef <- ""
-                MediumAquaMarinebold <-
-                  paste0(
-                    '<span style = "color:MediumAquaMarine;font-weight:bold">',
-                    as.character(complement(ntsstop()[stopstart:stopend])),
-                    '</span>'
-                  )
-                MediumAquaMarine <-
-                  paste0(
-                    '<span style = "color:MediumAquaMarine">',
-                    as.character(complement(ntsstop()[(stopend + 1):(pamstart + nchar(sortedallpam$PAM[i]) - 1)])),
-                    '</span>'
-                  )
-              }
-              else if (stopstart + 1 == pamstart) {
-                bluebold <-
-                  paste0(
-                    '<span style = "color:orange;font-weight:bold">',
-                    as.character(complement(ntsstop()[stopstart:stopstart])),
-                    '</span>'
-                  )
-                bluef <- ""
-                MediumAquaMarinebold <-
-                  paste0(
-                    '<span style = "color:MediumAquaMarine;font-weight:bold">',
-                    as.character(complement(ntsstop()[(stopstart + 1):stopend])),
-                    '</span>'
-                  )
-                MediumAquaMarine <-
-                  paste0(
-                    '<span style = "color:MediumAquaMarine">',
-                    as.character(complement(ntsstop()[(stopend + 1):(pamstart + nchar(sortedallpam$PAM[i]) - 1)])),
-                    '</span>'
-                  )
-              } else if (stopstart + 2 == pamstart) {
-                bluebold <-
-                  paste0(
-                    '<span style = "color:orange;font-weight:bold">',
-                    as.character(complement(ntsstop()[stopstart:(stopstart + 1)])),
-                    '</span>'
-                  )
-                bluef <- ""
-                MediumAquaMarinebold <-
-                  paste0(
-                    '<span style = "color:MediumAquaMarine;font-weight:bold">',
-                    as.character(complement(ntsstop()[stopend:stopend])),
-                    '</span>'
-                  )
-                MediumAquaMarine <-
-                  paste0(
-                    '<span style = "color:MediumAquaMarine">',
-                    as.character(complement(ntsstop()[(stopend + 1):(pamstart + nchar(sortedallpam$PAM[i]) - 1)])),
-                    '</span>'
-                  )
-              }
-              else if (stopstart + 3 == pamstart) {
-                bluebold <-
-                  paste0(
-                    '<span style = "color:orange;font-weight:bold">',
-                    as.character(complement(ntsstop()[stopstart:stopend])),
-                    '</span>'
-                  )
-                bluef <- ""
-                MediumAquaMarinebold <- ""
-                MediumAquaMarine <-
-                  paste0(
-                    '<span style = "color:MediumAquaMarine">',
-                    as.character(complement(ntsstop()[pamstart:(pamstart + nchar(sortedallpam$PAM[i]) - 1)])),
-                    '</span>'
-                  )
-              } else if (stopstart + 3 < pamstart) {
-                bluebold <-
-                  paste0(
-                    '<span style = "color:orange;font-weight:bold">',
-                    as.character(complement(ntsstop()[stopstart:stopend])),
-                    '</span>'
-                  )
-                bluef <-
-                  paste0(
-                    '<span style = "color:orange">',
-                    as.character(complement(ntsstop()[(stopend + 1):(pamstart - 1)])),
-                    '</span>'
-                  )
-                MediumAquaMarinebold <- ""
-                MediumAquaMarine <-
-                  paste0(
-                    '<span style = "color:MediumAquaMarine">',
-                    as.character(complement(ntsstop()[pamstart:(pamstart + nchar(sortedallpam$PAM[i]) - 1)])),
-                    '</span>'
-                  )
-              }
-              summary$Target[i] <-
-                paste0(
-                  paste0(
-                    as.character(ntsstop()[1:(
-                      nchar(ntsstop()) - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) - 10 - 23 + 1
-                    )]),
-                    '<sup>&#9660;</sup>',
-                    '<span style = "text-decoration: underline">',
-                    as.character(ntsstop()[(
-                      nchar(ntsstop()) - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) - 10 - 22 + 1
-                    ):(
-                      nchar(ntsstop()) - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) - 10 - 22 + 1 + 4
-                    )]),
-                    '</span>',
-                    '<span style = "color:GhostWhite">',
-                    "_",
-                    '</span>',
-                    as.character(ntsstop()[(
-                      nchar(ntsstop()) - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) - 10 - 22 + 1 + 5
-                    ):(stopstart - 1)]),
-                    strong(as.character(ntsstop()[(stopstart):(stopend)])),
-                    as.character(ntsstop()[(stopend + 1):nchar(ntsstop())])
-                  ),
-                  '<br>',
-                  paste0(
-                    blackr,
-                    bluerr,
-                    '<sub>&#9650;</sub>',
-                    bluer,
-                    bluebold,
-                    bluef,
-                    MediumAquaMarinebold,
-                    MediumAquaMarine,
-                    blackf
-                  )
-                )
-            }
-            else if (sortedallpam$strand[i] == "direct*") {
-              reversestrand <- paste0(
-                complement(DNAString(
-                  substr(targetseq(), 194, 200)
-                )),
-                strong(complement(DNAString(
-                  substr(targetseq(), 201, 203)
-                ))),
-                complement(DNAString(substr(
-                  targetseq(),
-                  (203 + 1),
-                  (
-                    200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 17
-                  )
-                ))),
-                '<span style = "color:GhostWhite">',
-                "_",
-                '</span>',
-                '<span style = "text-decoration: underline">',
-                complement(DNAString(substr(
-                  targetseq(),
-                  (
-                    200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 18
-                  ),
-                  (
-                    200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 22
-                  )
-                ))),
-                '</span>',
-                '<sub>&#9650;</sub>',
-                complement(DNAString(substr(
-                  targetseq(),
-                  (
-                    200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 23
-                  ),
-                  (204 + 17 + 125)
-                )))
-              )
-              if (sortedallpam$start[i] == 1) {
-                directstrand <- paste0(
-                  substr(targetseq(), 194, 200),
-                  '<span style = "color:MediumVioletRed">',
-                  strong(substr(targetseq(), 201, 203)),
-                  substr(targetseq(),
-                         204,
-                         204),
-                  '</span>',
-                  '<span style = "color:orange">',
-                  substr(
-                    targetseq(),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i])
-                    ),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 17
-                    )
-                  ),
-                  '</span>',
-                  '<sup>&#9660;</sup>',
-                  '<span style = "text-decoration: underline; text-decoration-color: black;">',
-                  '<span style = "color:orange">',
-                  substr(
-                    targetseq(),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 18
-                    ),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 19
-                    )
-                  ),
-                  '</span>',
-                  substr(
-                    targetseq(),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 20
-                    ),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 22
-                    )
-                  ),
-                  '</span>',
-                  '<span style = "color:GhostWhite">',
-                  "_",
-                  '</span>',
-                  substr(
-                    targetseq(),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 23
-                    ),
-                    (204 + 17 + 125)
-                  )
-                )
-              } else if (sortedallpam$start[i] == 2) {
-                directstrand <- paste0(
-                  substr(targetseq(), 194, 200),
-                  strong(substr(targetseq(), 201, 201)),
-                  '<span style = "color:MediumVioletRed">',
-                  strong(substr(targetseq(), 202, 203)),
-                  substr(targetseq(),
-                         203, 204),
-                  '</span>',
-                  '<span style = "color:orange">',
-                  substr(
-                    targetseq(),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i])
-                    ),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 17
-                    )
-                  ),
-                  '</span>',
-                  '<sup>&#9660;</sup>',
-                  '<span style = "text-decoration: underline; text-decoration-color: black;">',
-                  '<span style = "color:orange">',
-                  substr(
-                    targetseq(),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 18
-                    ),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 19
-                    )
-                  ),
-                  '</span>',
-                  substr(
-                    targetseq(),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 20
-                    ),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 22
-                    )
-                  ),
-                  '</span>',
-                  '<span style = "color:GhostWhite">',
-                  "_",
-                  '</span>',
-                  substr(
-                    targetseq(),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 23
-                    ),
-                    (204 + 17 + 125)
-                  )
-                )
-              } else if (sortedallpam$start[i] == 3) {
-                directstrand <- paste0(
-                  substr(targetseq(), 194, 200),
-                  strong(substr(targetseq(), 201, 202)),
-                  '<span style = "color:MediumVioletRed">',
-                  strong(substr(targetseq(), 203, 203)),
-                  substr(targetseq(),
-                         204, 204),
-                  '</span>',
-                  '<span style = "color:orange">',
-                  substr(
-                    targetseq(),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i])
-                    ),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 17
-                    )
-                  ),
-                  '</span>',
-                  '<sup>&#9660;</sup>',
-                  '<span style = "text-decoration: underline; text-decoration-color: black;">',
-                  '<span style = "color:orange">',
-                  substr(
-                    targetseq(),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 18
-                    ),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 19
-                    )
-                  ),
-                  '</span>',
-                  substr(
-                    targetseq(),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 20
-                    ),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 22
-                    )
-                  ),
-                  '</span>',
-                  '<span style = "color:GhostWhite">',
-                  "_",
-                  '</span>',
-                  substr(
-                    targetseq(),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 23
-                    ),
-                    (204 + 17 + 125)
-                  )
-                )
-              } else {
-                directstrand <- paste0(
-                  substr(targetseq(), 194, 200),
-                  strong(substr(targetseq(), 201, 203)),
-                  substr(
-                    targetseq(),
-                    (203 + 1),
-                    (200 + sortedallpam$start[i] - 1)
-                  ),
-                  '<span style = "color:MediumVioletRed">',
-                  substr(
-                    targetseq(),
-                    (200 + sortedallpam$start[i]),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) - 1
-                    )
-                  ),
-                  '</span>',
-                  '<span style = "color:orange">',
-                  substr(
-                    targetseq(),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i])
-                    ),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 17
-                    )
-                  ),
-                  '</span>',
-                  '<sup>&#9660;</sup>',
-                  '<span style = "text-decoration: underline; text-decoration-color: black;">',
-                  '<span style = "color:orange">',
-                  substr(
-                    targetseq(),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 18
-                    ),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 19
-                    )
-                  ),
-                  '</span>',
-                  substr(
-                    targetseq(),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 20
-                    ),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 22
-                    )
-                  ),
-                  '</span>',
-                  '<span style = "color:GhostWhite">',
-                  "_",
-                  '</span>',
-                  substr(
-                    targetseq(),
-                    (
-                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 23
-                    ),
-                    (204 + 17 + 125)
-                  )
-                )
-              }
-              summary$Target[i] <- paste0(directstrand,
-                                          '<br>',
-                                          reversestrand)
-            }
-            else if (sortedallpam$strand[i] == "reverse*") {
-              blackr <- complement(DNAString(substr(targetseq(), 194, 200)))
-              MediumVioletRed <-
-                complement(DNAString(substr(
-                  targetseq(),
-                  (
-                    203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2
-                  ),
-                  (203 + rvei$data - sortedallpam$start[i] + 1)
-                )))
-              blackf <-
-                complement(DNAString(substr(
-                  targetseq(),
-                  (203 + rvei$data - sortedallpam$start[i] + 2),
-                  (204 + 17 + 125)
-                )))
-              # more than 3 nt distance between stop and crRNA end
-              if ((rvei$data - sortedallpam$start[i] - 2) > (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
-                blackbold <-
-                  strong(complement(DNAString(
-                    substr(targetseq(), 201, 203)
-                  )))
-                blackrr <-
-                  paste0(
-                    complement(DNAString(
-                      substr(
-                        targetseq(),
-                        204,
-                        (
-                          203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 23
-                        )
-                      )
-                    )),
-                    '<span style = "color:GhostWhite">',
-                    "_",
-                    '</span>',
-                    '<span style = "text-decoration: underline">',
-                    complement(DNAString(substr(
-                      targetseq(),
-                      (
-                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 22
-                      ),
-                      (
-                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 20
-                      )
-                    ))),
-                    '</span>'
-                  )
-                bluebold <- ""
-                bluer <-
-                  complement(DNAString(substr(
-                    targetseq(),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 19
-                    ),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 18
-                    )
-                  )))
-                blue <-
-                  complement(DNAString(substr(
-                    targetseq(),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 17
-                    ),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1
-                    )
-                  )))
-                directstrand <- paste0(
-                  substr(targetseq(), 194, 200),
-                  strong(substr(targetseq(), 201, 203)),
-                  substr(
-                    targetseq(),
-                    204,
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 23
-                    )
-                  ),
-                  '<sup>&#9660;</sup>',
-                  '<span style = "text-decoration: underline">',
-                  substr(
-                    targetseq(),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 22
-                    ),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 18
-                    )
-                  ),
-                  '</span>',
-                  '<span style = "color:GhostWhite">',
-                  "_",
-                  '</span>',
-                  substr(
-                    targetseq(),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 17
-                    ),
-                    (204 + 17 + 125)
-                  )
-                )
-                # 3 nt distance between stop and crRNA end
-              }
-              else if ((rvei$data - sortedallpam$start[i] - 2) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
-                blackbold <-
-                  paste0(
-                    strong(complement(DNAString(
-                      substr(targetseq(), 201, 203)
-                    ))),
-                    '<span style = "color:GhostWhite">',
-                    "_",
-                    '</span>'
-                  )
-                blackrr <-
-                  paste0(
-                    '<span style = "text-decoration: underline">',
-                    complement(DNAString(
-                      substr(targetseq(), 204, 206)
-                    )),
-                    '</span>'
-                  )
-                bluebold <- ""
-                bluer <-
-                  complement(DNAString(substr(
-                    targetseq(),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 19
-                    ),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 18
-                    )
-                  )))
-                blue <-
-                  complement(DNAString(substr(
-                    targetseq(),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 17
-                    ),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1
-                    )
-                  )))
-                directstrand <- paste0(
-                  substr(targetseq(), 194, 200),
-                  strong(substr(targetseq(), 201, 203)),
-                  '<sup>&#9660;</sup>',
-                  '<span style = "text-decoration: underline">',
-                  substr(targetseq(), 204, 208),
-                  '</span>',
-                  '<span style = "color:GhostWhite">',
-                  "_",
-                  '</span>',
-                  substr(targetseq(), 209, (204 + 17 + 125))
-                )
-                # 2 nt distance between stop and crRNA end
-              } else if ((rvei$data - sortedallpam$start[i] - 1) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
-                oligorank[i] <- oligorank[i] + 1
-                blackbold <-
-                  paste0(
-                    strong(complement(DNAString(
-                      substr(targetseq(), 201, 202)
-                    ))),
-                    '<span style = "color:GhostWhite">',
-                    "_",
-                    '</span>',
-                    '<span style = "text-decoration: underline">',
-                    strong(complement(DNAString(
-                      substr(targetseq(), 203, 203)
-                    ))),
-                    '</span>'
-                  )
-                blackrr <-
-                  paste0(
-                    '<span style = "text-decoration: underline">',
-                    complement(DNAString(
-                      substr(targetseq(), 204, 205)
-                    )),
-                    '</span>'
-                  )
-                bluebold <- ""
-                bluer <-
-                  complement(DNAString(substr(
-                    targetseq(),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 19
-                    ),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 18
-                    )
-                  )))
-                blue <-
-                  complement(DNAString(substr(
-                    targetseq(),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 17
-                    ),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1
-                    )
-                  )))
-                directstrand <- paste0(
-                  substr(targetseq(), 194, 200),
-                  strong(substr(targetseq(), 201, 202)),
-                  '<sup>&#9660;</sup>',
-                  '<span style = "text-decoration: underline">',
-                  strong(substr(targetseq(), 203, 203)),
-                  substr(targetseq(), 204, 207),
-                  '</span>',
-                  '<span style = "color:GhostWhite">',
-                  "_",
-                  '</span>',
-                  substr(targetseq(), 208, (204 + 17 + 125))
-                )
-                # 1 nt distance between stop and crRNA end
-              }
-              else if ((rvei$data - sortedallpam$start[i]) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
-                oligorank[i] <- oligorank[i] + 1
-                blackbold <-
-                  paste0(
-                    strong(complement(DNAString(
-                      substr(targetseq(), 201, 201)
-                    ))),
-                    '<span style = "color:GhostWhite">',
-                    "_",
-                    '</span>',
-                    '<span style = "text-decoration: underline">',
-                    strong(complement(DNAString(
-                      substr(targetseq(), 202, 203)
-                    ))),
-                    '</span>'
-                  )
-                blackrr <-
-                  paste0(
-                    '<span style = "text-decoration: underline">',
-                    complement(DNAString(
-                      substr(targetseq(), 204, 204)
-                    )),
-                    '</span>'
-                  )
-                bluebold <- ""
-                bluer <-
-                  complement(DNAString(substr(
-                    targetseq(),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 19
-                    ),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 18
-                    )
-                  )))
-                blue <-
-                  complement(DNAString(substr(
-                    targetseq(),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 17
-                    ),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1
-                    )
-                  )))
-                directstrand <- paste0(
-                  substr(targetseq(), 194, 200),
-                  strong(substr(targetseq(), 201, 201)),
-                  '<sup>&#9660;</sup>',
-                  '<span style = "text-decoration: underline">',
-                  strong(substr(targetseq(), 202, 203)),
-                  substr(targetseq(), 204, 206),
-                  '</span>',
-                  '<span style = "color:GhostWhite">',
-                  "_",
-                  '</span>',
-                  substr(targetseq(), 207, (204 + 17 + 125))
-                )
-                # no distance between stop and crRNA end
-              } else if ((rvei$data - sortedallpam$start[i] + 1) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
-                oligorank[i] <- oligorank[i] + 1
-                blackbold <-
-                  paste0(
-                    '<span style = "color:GhostWhite">',
-                    "_",
-                    '</span>',
-                    '<span style = "text-decoration: underline">',
-                    strong(complement(DNAString(
-                      substr(targetseq(), 201, 203)
-                    ))),
-                    '</span>'
-                  )
-                blackrr <- ""
-                bluebold <- ""
-                bluer <-
-                  complement(DNAString(substr(
-                    targetseq(),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 19
-                    ),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 18
-                    )
-                  )))
-                blue <-
-                  complement(DNAString(substr(
-                    targetseq(),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 17
-                    ),
-                    (
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1
-                    )
-                  )))
-                directstrand <- paste0(
-                  substr(targetseq(), 194, 200),
-                  '<sup>&#9660;</sup>',
-                  '<span style = "text-decoration: underline">',
-                  strong(substr(targetseq(), 201, 203)),
-                  substr(targetseq(), 204, 205),
-                  '</span>',
-                  '<span style = "color:GhostWhite">',
-                  "_",
-                  '</span>',
-                  substr(targetseq(), 206, (204 + 17 + 125))
-                )
-              }
-              # crRNA end overlaps with the STOP codon - 1 nt
-              else if ((rvei$data - sortedallpam$start[i] + 2) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
-                oligorank[i] <- oligorank[i] + 1
-                blackr <-
-                  complement(DNAString(substr(targetseq(), 194, 199)))
-                blackbold <-
-                  paste0(
-                    '<span style = "color:GhostWhite">',
-                    "_",
-                    '</span>',
-                    '<span style = "text-decoration: underline; text-decoration-color: black;">',
-                    complement(DNAString(
-                      substr(targetseq(), 200, 200)
-                    )),
-                    strong(complement(DNAString(
-                      substr(targetseq(), 201, 202)
-                    ))),
-                    '<span style = "color:orange">',
-                    strong(complement(DNAString(
-                      substr(targetseq(), 203, 203)
-                    ))),
-                    complement(DNAString(
-                      substr(targetseq(), 204, 204)
-                    )),
-                    '</span>',
-                    '</span>'
-                  )
-                blackrr <- ""
-                bluebold <- ""
-                bluer <- ""
-                blue <-
-                  complement(DNAString(substr(
-                    targetseq(), 205, 205 + 18 - 1
-                  )))
-                directstrand <- paste0(
-                  substr(targetseq(), 194, 199),
-                  '<sup>&#9660;</sup>',
-                  '<span style = "text-decoration: underline">',
-                  substr(targetseq(), 200, 200),
-                  strong(substr(targetseq(), 201, 203)),
-                  substr(targetseq(), 204, 204),
-                  '</span>',
-                  '<span style = "color:GhostWhite">',
-                  "_",
-                  '</span>',
-                  substr(targetseq(), 205, (204 + 17 + 125))
-                )
-              }
-              # crRNA end overlaps with the STOP codon - 2 nt
-              else if ((rvei$data - sortedallpam$start[i] + 3) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
-                oligorank[i] <- oligorank[i] + 1
-                blackr <-
-                  complement(DNAString(substr(targetseq(), 194, 198)))
-                blackbold <-
-                  paste0(
-                    '<span style = "color:GhostWhite">',
-                    "_",
-                    '</span>',
-                    '<span style = "text-decoration: underline; text-decoration-color: black;">',
-                    complement(DNAString(
-                      substr(targetseq(), 199, 200)
-                    )),
-                    strong(complement(DNAString(
-                      substr(targetseq(), 201, 201)
-                    ))),
-                    '<span style = "color:orange">',
-                    strong(complement(DNAString(
-                      substr(targetseq(), 202, 203)
-                    ))),
-                    '</span>',
-                    '</span>'
-                  )
-                blackrr <- ""
-                bluebold <- ""
-                bluer <- ""
-                blue <-
-                  complement(DNAString(substr(
-                    targetseq(), 204, 204 + 18 - 1
-                  )))
-                directstrand <- paste0(
-                  substr(targetseq(), 194, 198),
-                  '<sup>&#9660;</sup>',
-                  '<span style = "text-decoration: underline">',
-                  substr(targetseq(), 199, 200),
-                  strong(substr(targetseq(), 201, 203)),
-                  '</span>',
-                  '<span style = "color:GhostWhite">',
-                  "_",
-                  '</span>',
-                  substr(targetseq(), 204, (204 + 17 + 125))
-                )
-              }
-              # crRNA end overlaps with the STOP codon - 3 nt
-              else if ((rvei$data - sortedallpam$start[i] + 4) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
-                oligorank[i] <- oligorank[i] + 1
-                blackr <-
-                  complement(DNAString(substr(targetseq(), 194, 197)))
-                blackbold <-
-                  paste0(
-                    '<span style = "color:GhostWhite">',
-                    "_",
-                    '</span>',
-                    '<span style = "text-decoration: underline; text-decoration-color: black;">',
-                    complement(DNAString(
-                      substr(targetseq(), 198, 200)
-                    )),
-                    '<span style = "color:orange">',
-                    strong(complement(DNAString(
-                      substr(targetseq(), 201, 202)
-                    ))),
-                    '</span>',
-                    '</span>'
-                  )
-                blackrr <- ""
-                bluebold <- ""
-                bluer <- ""
-                blue <-
-                  paste0(strong(complement(DNAString(
-                    substr(targetseq(), 203, 203)
-                  ))),
-                  complement(DNAString(
-                    substr(targetseq(), 204, 204 + 17 - 1)
-                  )))
-                directstrand <- paste0(
-                  substr(targetseq(), 194, 197),
-                  '<sup>&#9660;</sup>',
-                  '<span style = "text-decoration: underline">',
-                  substr(targetseq(), 198, 200),
-                  strong(substr(targetseq(), 201, 202)),
-                  '</span>',
-                  '<span style = "color:GhostWhite">',
-                  "_",
-                  '</span>',
-                  strong(substr(targetseq(), 203, 203)),
-                  substr(targetseq(), 204, (204 + 17 + 125))
-                )
-              }
-              # crRNA end overlaps with the STOP codon - 3 nt + 1
-              else if ((rvei$data - sortedallpam$start[i] + 5) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
-                oligorank[i] <- oligorank[i] + 1
-                blackr <-
-                  complement(DNAString(substr(targetseq(), 194, 196)))
-                blackbold <-
-                  paste0(
-                    '<span style = "color:GhostWhite">',
-                    "_",
-                    '</span>',
-                    '<span style = "text-decoration: underline; text-decoration-color: black;">',
-                    complement(DNAString(
-                      substr(targetseq(), 197, 199)
-                    )),
-                    '<span style = "color:orange">',
-                    complement(DNAString(
-                      substr(targetseq(), 200, 200)
-                    )),
-                    strong(complement(DNAString(
-                      substr(targetseq(), 201, 201)
-                    ))),
-                    '</span>',
-                    '</span>'
-                  )
-                blackrr <- ""
-                bluebold <- ""
-                bluer <- ""
-                blue <-
-                  paste0(strong(complement(DNAString(
-                    substr(targetseq(), 202, 203)
-                  ))),
-                  complement(DNAString(
-                    substr(targetseq(), 203, 203 + 16 - 1)
-                  )))
-                directstrand <- paste0(
-                  substr(targetseq(), 194, 196),
-                  '<sup>&#9660;</sup>',
-                  '<span style = "text-decoration: underline">',
-                  substr(targetseq(), 197, 200),
-                  strong(substr(targetseq(), 201, 201)),
-                  '</span>',
-                  '<span style = "color:GhostWhite">',
-                  "_",
-                  '</span>',
-                  strong(substr(targetseq(), 202, 203)),
-                  substr(targetseq(), 204, (204 + 17 + 125))
-                )
-              }
-              # crRNA end overlaps with the STOP codon - 3 nt + 2
-              else if ((rvei$data - sortedallpam$start[i] + 6) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
-                oligorank[i] <- oligorank[i] + 1
-                blackr <-
-                  complement(DNAString(substr(targetseq(), 194, 195)))
-                blackbold <-
-                  paste0(
-                    '<span style = "color:GhostWhite">',
-                    "_",
-                    '</span>',
-                    '<span style = "text-decoration: underline; text-decoration-color: black;">',
-                    complement(DNAString(
-                      substr(targetseq(), 196, 198)
-                    )),
-                    '<span style = "color:orange">',
-                    complement(DNAString(
-                      substr(targetseq(), 199, 200)
-                    )),
-                    '</span>',
-                    '</span>'
-                  )
-                blackrr <- ""
-                bluebold <- ""
-                bluer <- ""
-                blue <-
-                  paste0(strong(complement(DNAString(
-                    substr(targetseq(), 201, 203)
-                  ))),
-                  complement(DNAString(
-                    substr(targetseq(), 203, 203 + 15 - 1)
-                  )))
-                directstrand <- paste0(
-                  substr(targetseq(), 194, 195),
-                  '<sup>&#9660;</sup>',
-                  '<span style = "text-decoration: underline">',
-                  substr(targetseq(), 196, 200),
-                  '</span>',
-                  '<span style = "color:GhostWhite">',
-                  "_",
-                  '</span>',
-                  strong(substr(targetseq(), 201, 203)),
-                  substr(targetseq(), 204, (204 + 17 + 125))
-                )
-              }
-              # crRNA end overlaps with the STOP codon - 3 nt + 3
-              else if ((rvei$data - sortedallpam$start[i] + 7) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
-                oligorank[i] <- oligorank[i] + 1
-                blackr <-
-                  complement(DNAString(substr(targetseq(), 194, 194)))
-                blackbold <-
-                  paste0(
-                    '<span style = "color:GhostWhite">',
-                    "_",
-                    '</span>',
-                    '<span style = "text-decoration: underline; text-decoration-color: black;">',
-                    complement(DNAString(
-                      substr(targetseq(), 195, 197)
-                    )),
-                    '<span style = "color:orange">',
-                    complement(DNAString(
-                      substr(targetseq(), 198, 199)
-                    )),
-                    '</span>',
-                    '</span>'
-                  )
-                blackrr <- ""
-                bluebold <- ""
-                bluer <- ""
-                blue <-
-                  paste0(
-                    complement(DNAString(
-                      substr(targetseq(), 199, 200)
-                    )),
-                    strong(complement(DNAString(
-                      substr(targetseq(), 201, 203)
-                    ))),
-                    complement(DNAString(
-                      substr(targetseq(), 204, 204 + 14 - 1)
-                    ))
-                  )
-                directstrand <- paste0(
-                  substr(targetseq(), 194, 194),
-                  '<sup>&#9660;</sup>',
-                  '<span style = "text-decoration: underline">',
-                  substr(targetseq(), 195, 199),
-                  '</span>',
-                  '<span style = "color:GhostWhite">',
-                  "_",
-                  '</span>',
-                  substr(targetseq(), 199, 200),
-                  strong(substr(targetseq(), 201, 203)),
-                  substr(targetseq(), 204, (204 + 17 + 125))
-                )
-              }
-              else if ((rvei$data - sortedallpam$start[i] + 7) < (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
-                oligorank[i] <- oligorank[i] + 1
-                blackr <-
-                  complement(DNAString(substr(targetseq(), 194, 194)))
-                blackbold <-
-                  paste0(
-                    '<span style = "color:GhostWhite">',
-                    "_",
-                    '</span>',
-                    '<span style = "text-decoration: underline; text-decoration-color: black;">',
-                    complement(DNAString(
-                      substr(targetseq(), 195, 197)
-                    )),
-                    '<span style = "color:orange">',
-                    complement(DNAString(
-                      substr(targetseq(), 198, 199)
-                    )),
-                    '</span>',
-                    '</span>',
-                    '<span style = "color:orange">',
-                    complement(DNAString(
-                      substr(targetseq(), 199, 200)
-                    )),
-                    '</span>'
-                  )
-                blackrr <- ""
-                bluebold <-
-                  paste0(strong(complement(DNAString(
-                    substr(targetseq(), 201, 203)
-                  ))))
-                bluer <- ""
-                blue <-
-                  complement(DNAString(substr(
-                    targetseq(), 203, 203 + 14 - 1
-                  )))
-                directstrand <- paste0(
-                  substr(targetseq(), 194, 194),
-                  '<sup>&#9660;</sup>',
-                  '<span style = "text-decoration: underline">',
-                  substr(targetseq(), 195, 199),
-                  '</span>',
-                  '<span style = "color:GhostWhite">',
-                  "_",
-                  '</span>',
-                  substr(targetseq(), 199, 200),
-                  strong(substr(targetseq(), 201, 203)),
-                  substr(targetseq(), 204, (204 + 17 + 125))
-                )
-              }
-              summary$Target[i] <- paste0(
-                directstrand,
-                '<br>',
-                paste0(
-                  blackr,
-                  blackbold,
-                  '<span style = "color:orange;font-weight:bold">',
-                  bluebold,
-                  '</span>',
-                  blackrr,
-                  '<span style = "color:orange; text-decoration: underline; text-decoration-color: black;">',
-                  bluer,
-                  '</span>',
-                  '<sub>&#9650;</sub>',
-                  '<span style = "color:orange">',
-                  blue,
-                  '</span>',
-                  '<span style = "color:MediumVioletRed">',
-                  MediumVioletRed,
-                  '</span>',
-                  blackf
-                )
-              )
-            }
-            
-            # End of target sequence formatting ---------------------------------------
-            
-            # Output table for download, without html-formatting
-            csvoutput$`Cas12a (Cpf1)`[i] <- cpfname[i]
-            csvoutput$PAM[i] <- sortedallpam$PAM[i]
-            csvoutput$Strand[i] <-
-              as.character(sortedallpam$strand[i])
-            csvoutput$`crRNA (direct repeat + spacer)`[i] <-
-              paste0(as.character(crRNAdr[i]),
-                     gsub("T", "U", reverseComplement(DNAString(
-                       crRNAs[i]
-                     ))))
-            csvoutput$`Suggested name`[i] <- sugname[i]
-            if ((sortedallpam$strand[i] == "direct") |
-                (sortedallpam$strand[i] == "reverse")) {
-              if (input$phospho == 1) {
-                modha <- ""
-                for (j in (1:rvpn$data)) {
-                  modelement <- paste0(as.character(reverseComplement(
-                    DNAString(targetseq())[(200 + 4 + rvthree$data - 1 - j + 1)]
-                  )), "*")
-                  modha <- paste0(modha, modelement)
                 }
-                modharest <-
-                  as.character(reverseComplement(DNAString(targetseq())[(200 + 4):(200 + 4 + rvthree$data - 1 - rvpn$data)]))
-                csvoutput$Sequence[i] <-
-                  paste0(modha,
-                         modharest,
-                         "AAAAAA",
-                         crRNAs[i],
-                         dr[i],
-                         "GCTAGCTGCATCGGTACC")
-              } else {
-                csvoutput$Sequence[i] <-
-                  paste0(
+                summary$Strand[i] <-
+                  # PAM site found on the direct or reverse strand
+                  paste(as.character(sortedallpam$strand[i]))
+              }
+              else if (sortedallpam$strand[i] == "direct*") {
+                summary$Strand[i] <- "direct"
+                if (input$phospho == 1) {
+                  modha <- ""
+                  for (j in (1:rvpn$data)) {
+                    modelement <- paste0(as.character(reverseComplement(
+                      DNAString(targetseq())[(
+                        sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 200 + nchar(crRNAs[i]) + rvthree$data - 1 - j + 1
+                      )]
+                    )), "*")
+                    modha <- paste0(modha, modelement)
+                  }
+                  modharest <-
+                    as.character(reverseComplement(DNAString(targetseq())[(
+                      sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 200 + nchar(crRNAs[i])
+                    ):(
+                      sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 200 + nchar(crRNAs[i]) + rvthree$data - 1 - rvpn$data
+                    )]))
+                  summary$Sequence[i] <-
+                    paste0(
+                      '<span style = "color:CornflowerBlue ">',
+                      modha,
+                      modharest,
+                      '</span>',
+                      '<span style = "color:brown">',
+                      "AAAAAA",
+                      '</span>',
+                      '<span style = "color:orange">',
+                      crRNAs[i],
+                      '</span>',
+                      '<span style = "text-decoration: underline; color:orange; text-decoration-color: black;">',
+                      dr[i],
+                      '</span>',
+                      '<span style = "color:grey">',
+                      "GCTAGCTGCATCGGTACC",
+                      '</span>'
+                    )
+                } else {
+                  summary$Sequence[i] <-
+                    paste0(
+                      '<span style = "color:CornflowerBlue ">',
+                      as.character(reverseComplement(
+                        DNAString(targetseq())[(
+                          sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 200 + nchar(crRNAs[i])
+                        ):(
+                          sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 200 + nchar(crRNAs[i]) + rvthree$data - 1
+                        )]
+                      )),
+                      '</span>',
+                      '<span style = "color:brown">',
+                      "AAAAAA",
+                      '</span>',
+                      '<span style = "color:orange">',
+                      crRNAs[i],
+                      '</span>',
+                      '<span style = "text-decoration: underline; color:orange; text-decoration-color: black;">',
+                      dr[i],
+                      '</span>',
+                      '<span style = "color:grey">',
+                      "GCTAGCTGCATCGGTACC",
+                      '</span>'
+                    )
+                }
+              } else if (sortedallpam$strand[i] == "reverse*") {
+                summary$Strand[i] <- "reverse"
+                if (input$phospho == 1) {
+                  modha <- ""
+                  for (j in (1:rvpn$data)) {
+                    modelement <- paste0(as.character(reverseComplement(
+                      DNAString(targetseq())[(
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2 + rvthree$data - 1 - j + 1
+                      )]
+                    )), "*")
+                    modha <- paste0(modha, modelement)
+                  }
+                  modharest <-
+                    as.character(reverseComplement(DNAString(targetseq())[(203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2):(
+                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2 + rvthree$data - 1 - rvpn$data
+                    )]))
+                  summary$Sequence[i] <-
+                    paste0(
+                      '<span style = "color:CornflowerBlue ">',
+                      modha,
+                      modharest,
+                      '</span>',
+                      '<span style = "color:brown">',
+                      "AAAAAA",
+                      '</span>',
+                      '<span style = "color:orange">',
+                      crRNAs[i],
+                      '</span>',
+                      '<span style = "text-decoration: underline; color:orange; text-decoration-color: black;">',
+                      dr[i],
+                      '</span>',
+                      '<span style = "color:grey">',
+                      "GCTAGCTGCATCGGTACC",
+                      '</span>'
+                    )
+                } else {
+                  summary$Sequence[i] <-
+                    paste0(
+                      '<span style = "color:CornflowerBlue ">',
+                      as.character(reverseComplement(
+                        DNAString(targetseq())[(203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2):(
+                          203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2 + rvthree$data - 1
+                        )]
+                      )),
+                      '</span>',
+                      '<span style = "color:brown">',
+                      "AAAAAA",
+                      '</span>',
+                      '<span style = "color:orange">',
+                      crRNAs[i],
+                      '</span>',
+                      '<span style = "text-decoration: underline; color:orange; text-decoration-color: black;">',
+                      dr[i],
+                      '</span>',
+                      '<span style = "color:grey">',
+                      "GCTAGCTGCATCGGTACC",
+                      '</span>'
+                    )
+                }
+              }
+              summary$Length[i] <- # Length of the revers oligo (nt)
+                paste(format(round(nchar(
+                  paste(
                     as.character(reverseComplement(DNAString(
                       targetseq()
                     )[(200 + 4):(200 + 4 + rvthree$data - 1)])),
-                    "AAAAAA",
-                    crRNAs[i],
-                    dr[i],
-                    "GCTAGCTGCATCGGTACC"
-                  )
-              }
-            }
-            else if (sortedallpam$strand[i] == "direct*") {
-              csvoutput$Strand[i] <- "direct"
-              if (input$phospho == 1) {
-                modha <- ""
-                for (j in (1:rvpn$data)) {
-                  modelement <- paste0(as.character(reverseComplement(
-                    DNAString(targetseq())[(
-                      sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 200 + nchar(crRNAs[i]) + rvthree$data - 1 - j + 1
-                    )]
-                  )), "*")
-                  modha <- paste0(modha, modelement)
-                }
-                modharest <-
-                  as.character(reverseComplement(DNAString(targetseq())[(
-                    sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 200 + nchar(crRNAs[i])
-                  ):(
-                    sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 200 + nchar(crRNAs[i]) + rvthree$data - 1 - rvpn$data
-                  )]))
-                csvoutput$Sequence[i] <-
-                  paste0(modha,
-                         modharest,
-                         "AAAAAA",
-                         crRNAs[i],
-                         dr[i],
-                         "GCTAGCTGCATCGGTACC")
-              } else {
-                csvoutput$Sequence[i] <-
-                  paste0(
-                    as.character(reverseComplement(DNAString(
-                      targetseq()
-                    )[(
-                      sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 203 + nchar(crRNAs[i])
-                    ):(
-                      sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 203 + nchar(crRNAs[i]) + rvthree$data - 1
-                    )])),
-                    "AAAAAA",
-                    crRNAs[i],
-                    dr[i],
-                    "GCTAGCTGCATCGGTACC"
-                  )
-              }
-            } else if (sortedallpam$strand[i] == "reverse*") {
-              csvoutput$Strand[i] <- "reverse"
-              if (input$phospho == 1) {
-                modha <- ""
-                for (j in (1:rvpn$data)) {
-                  modelement <- paste0(as.character(reverseComplement(
-                    DNAString(targetseq())[(
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2 + rvthree$data - 1 - j + 1
-                    )]
-                  )), "*")
-                  modha <- paste0(modha, modelement)
-                }
-                modharest <-
-                  as.character(reverseComplement(DNAString(targetseq())[(203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2):(
-                    203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2 + rvthree$data - 1 - rvpn$data
-                  )]))
-                csvoutput$Sequence[i] <-
-                  paste0(modha,
-                         modharest,
-                         "AAAAAA",
-                         crRNAs[i],
-                         dr[i],
-                         "GCTAGCTGCATCGGTACC",
-                         sep = "")
-              } else {
-                csvoutput$Sequence[i] <-
-                  paste0(
-                    as.character(reverseComplement(DNAString(
-                      targetseq()
-                    )[(203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2):(
-                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2 + rvthree$data - 1
-                    )])),
                     "AAAAAA",
                     crRNAs[i],
                     dr[i],
                     "GCTAGCTGCATCGGTACC",
                     sep = ""
                   )
-              }
-            }
-            csvoutput$Length[i] <-
-              paste(format(round(nchar(
-                paste(
-                  as.character(reverseComplement(DNAString(
-                    targetseq()
-                  )[(200 + 4):(200 + 4 + rvthree$data - 1)])),
-                  "AAAAAA",
-                  crRNAs[i],
-                  dr[i],
-                  "GCTAGCTGCATCGGTACC",
-                  sep = ""
+                ), 0), nsmall = 0), "nt", sep = "&nbsp")
+              stopstart <- (17 + 10 + 1)
+              stopend <- (17 + 10 + 3)
+              
+              # Target sequence formatting ----------------------------------------------------------------------
+              
+              # For the formatted visualization of the target sequence with the PAM site, the cleavage site and the overhangs, the sequence was divided into
+              # several sections, which were defined according to the cleavage site location in each case
+              if (as.character(sortedallpam$strand[i] == "direct")) {
+                regionds <- paste0(
+                  as.character(ntsstop()[1:(17 + 10)]),
+                  '<span style = "font-weight:bold">',
+                  (as.character(ntsstop()[(17 + 10 + 1):(17 + 3 + 10)])),
+                  '</span>',
+                  as.character(ntsstop()[(17 + 3 + 10 + 1):nchar(ntsstop())])
                 )
-              ), 0), nsmall = 0), " nt")
-            csvoutput <-
-              csvoutput[-c(pamnumber + 1, pamnumber + 2, pamnumber + 3), ]
-            csvoutput$Target <- NULL
-            # Increment the progress bar, and update the detail text.
-            incProgress(1/pamnumber, detail = paste("Reverse oligo", i, "/", pamnumber))
-            
-            # Pause for 0.1 seconds to simulate a long computation.
-            #Sys.sleep(0.1)
-                      }
-      })  
+                regiondr <- paste0(
+                  as.character(complement(ntsstop()[1:(17 + 10)])),
+                  strong(as.character(complement(
+                    ntsstop()[(17 + 10 + 1):(17 + 10 + 3)]
+                  ))),
+                  as.character(complement(ntsstop()[(17 + 3 + 10 + 1):nchar(ntsstop())]))
+                )
+                blackf <-
+                  substr(ntsstop(), 1, (sortedallpam$start[i] + 10 - 1))
+                blackr <-
+                  paste0(
+                    '<span style = "text-decoration: underline">',
+                    substr(
+                      ntsstop(),
+                      (
+                        sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + nchar(crRNAs[i])
+                      ),
+                      (
+                        sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + nchar(crRNAs[i]) + 2
+                      )
+                    ),
+                    '</span>',
+                    '<span style = "color:GhostWhite">',
+                    "_",
+                    '</span>',
+                    substr(
+                      ntsstop(),
+                      (
+                        sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + nchar(crRNAs[i]) + 3
+                      ),
+                      nchar(ntsstop())
+                    )
+                  )
+                bluer <-
+                  paste0(
+                    '<span style = "color:orange">',
+                    substr(
+                      ntsstop(),
+                      stopend + 1,
+                      (
+                        sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + nchar(crRNAs[i]) - 3
+                      )
+                    ),
+                    '</span>'
+                  )
+                bluerr <-
+                  paste0(
+                    '<span style = "color:orange; text-decoration: underline; text-decoration-color: black;">',
+                    substr(
+                      ntsstop(),
+                      (
+                        sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + nchar(crRNAs[i]) - 2
+                      ),
+                      (
+                        sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + nchar(crRNAs[i]) - 1
+                      )
+                    ),
+                    '</span>'
+                  )
+                pamstart <-
+                  sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) - 1
+                pamend <- 10 + 17
+                if (pamstart < pamend) {
+                  MediumAquaMarine <-
+                    paste0(
+                      '<span style = "color:MediumAquaMarine">',
+                      substr(
+                        ntsstop(),
+                        (sortedallpam$start[i] + 10),
+                        (
+                          sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) - 1
+                        )
+                      ),
+                      '</span>'
+                    )
+                  MediumAquaMarinebold <- ""
+                  bluef <-
+                    paste0(
+                      '<span style = "color:orange">',
+                      substr(
+                        ntsstop(),
+                        (
+                          sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i])
+                        ),
+                        stopstart - 1
+                      ),
+                      '</span>'
+                    )
+                  bluebold <-
+                    paste0(
+                      '<span style = "color:orange;font-weight:bold">',
+                      substr(ntsstop(), stopstart, stopend),
+                      '</span>'
+                    )
+                } else if (pamstart == pamend) {
+                  MediumAquaMarine <-
+                    paste0(
+                      '<span style = "color:MediumAquaMarine">',
+                      substr(
+                        ntsstop(),
+                        (sortedallpam$start[i] + 10),
+                        (
+                          sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) - 1
+                        )
+                      ),
+                      '</span>'
+                    )
+                  MediumAquaMarinebold <- ""
+                  bluef <- ""
+                  bluebold <-
+                    paste0(
+                      '<span style = "color:orange;font-weight:bold">',
+                      substr(ntsstop(), stopstart, stopend),
+                      '</span>'
+                    )
+                } else if (pamstart == pamend + 1) {
+                  MediumAquaMarine <-
+                    paste0(
+                      '<span style = "color:MediumAquaMarine">',
+                      substr(
+                        ntsstop(),
+                        (sortedallpam$start[i] + 10),
+                        (stopstart - 1)
+                      ),
+                      '</span>'
+                    )
+                  MediumAquaMarinebold <-
+                    paste0(
+                      '<span style = "color:MediumAquaMarine;font-weight:bold">',
+                      substr(ntsstop(), stopstart, stopstart),
+                      '</span>'
+                    )
+                  bluef <- ""
+                  bluebold <-
+                    paste0(
+                      '<span style = "color:orange;font-weight:bold">',
+                      substr(ntsstop(), stopstart + 1, stopend),
+                      '</span>'
+                    )
+                } else if (pamstart == pamend + 2) {
+                  MediumAquaMarine <-
+                    paste0(
+                      '<span style = "color:MediumAquaMarine">',
+                      substr(
+                        ntsstop(),
+                        (sortedallpam$start[i] + 10),
+                        (stopstart - 1)
+                      ),
+                      '</span>'
+                    )
+                  MediumAquaMarinebold <-
+                    paste0(
+                      '<span style = "color:MediumAquaMarine;font-weight:bold">',
+                      substr(ntsstop(), stopstart, stopstart + 1),
+                      '</span>'
+                    )
+                  bluef <- ""
+                  bluebold <-
+                    paste0(
+                      '<span style = "color:orange;font-weight:bold">',
+                      substr(ntsstop(), stopend, stopend),
+                      '</span>'
+                    )
+                } else if (pamstart == pamend + 3) {
+                  MediumAquaMarine <-
+                    paste0(
+                      '<span style = "color:MediumAquaMarine">',
+                      substr(
+                        ntsstop(),
+                        (sortedallpam$start[i] + 10),
+                        (stopstart - 1)
+                      ),
+                      '</span>'
+                    )
+                  MediumAquaMarinebold <-
+                    paste0(
+                      '<span style = "color:MediumAquaMarine;font-weight:bold">',
+                      substr(ntsstop(), stopstart, stopend),
+                      '</span>'
+                    )
+                  bluef <- ""
+                  bluebold <- ""
+                }
+                summary$Target[i] <-
+                  paste0(
+                    paste0
+                    (
+                      blackf,
+                      MediumAquaMarine,
+                      MediumAquaMarinebold,
+                      bluef,
+                      bluebold,
+                      bluer,
+                      '<sup>&#9660;</sup>',
+                      bluerr,
+                      blackr
+                    ),
+                    '<br>',
+                    paste0(
+                      as.character(complement(ntsstop()[1:(stopstart - 1)])),
+                      strong(as.character(complement(
+                        ntsstop()[(stopstart):(stopend)]
+                      ))),
+                      as.character(complement(ntsstop()[(stopend + 1):(
+                        sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + nchar(crRNAs[i]) - 3
+                      )])),
+                      '<span style = "color:GhostWhite">',
+                      "_",
+                      '</span>',
+                      '<span style = "text-decoration: underline">',
+                      as.character(complement(ntsstop()[(
+                        sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + nchar(crRNAs[i]) - 2
+                      ):(sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + 22)])),
+                      '</span>',
+                      '<sub>&#9650;</sub>',
+                      as.character(complement(ntsstop()[(sortedallpam$start[i] + 10 + nchar(sortedallpam$PAM[i]) + 23):nchar(ntsstop())]))
+                    )
+                  )
+              }
+              else if (as.character(sortedallpam$strand[i] == "reverse")) {
+                blackr <-
+                  paste0(
+                    as.character(complement(ntsstop()[1:(
+                      nchar(as.character(ntsstop())) - sortedallpam$start[i] - 10 + 1 - nchar(sortedallpam$PAM[i]) - nchar(crRNAs[i]) - 3
+                    )])),
+                    '<span style = "color:GhostWhite">',
+                    "_",
+                    '</span>',
+                    '<span style = "text-decoration: underline">',
+                    as.character(complement(ntsstop()[(
+                      nchar(as.character(ntsstop())) - sortedallpam$start[i] - 10 + 1 - nchar(sortedallpam$PAM[i]) - nchar(crRNAs[i]) - 2
+                    ):(
+                      nchar(as.character(ntsstop())) - sortedallpam$start[i] - 10 + 1 - nchar(sortedallpam$PAM[i]) - nchar(crRNAs[i])
+                    )])),
+                    '</span>'
+                  )
+                bluerr <-
+                  paste0(
+                    '<span style = "color:orange; text-decoration: underline; text-decoration-color: black;">',
+                    as.character(complement(ntsstop()[(
+                      nchar(as.character(ntsstop())) - sortedallpam$start[i] - 10 + 1 - nchar(sortedallpam$PAM[i]) - nchar(crRNAs[i]) + 1
+                    ):(
+                      nchar(as.character(ntsstop())) - sortedallpam$start[i] - 10 + 1 - nchar(sortedallpam$PAM[i])  - nchar(crRNAs[i]) + 2
+                    )])),
+                    '</span>'
+                  )
+                bluer <-
+                  paste0(
+                    '<span style = "color:orange">',
+                    as.character(complement(ntsstop()[(
+                      nchar(as.character(ntsstop())) - sortedallpam$start[i] - 10 + 1 - nchar(sortedallpam$PAM[i]) - nchar(crRNAs[i]) + 2 + 1
+                    ):(stopstart - 1)])),
+                    '</span>'
+                  )
+                blackf <-
+                  as.character(complement(ntsstop()[(nchar(as.character(ntsstop())) - sortedallpam$start[i] - 10 + 2):nchar(ntsstop())]))
+                pamstart <-
+                  (
+                    nchar(as.character(ntsstop())) - sortedallpam$start[i] - 10 + 1 - nchar(sortedallpam$PAM[i]) + 1
+                  )
+                if (stopstart == pamstart) {
+                  bluebold <- ""
+                  bluef <- ""
+                  MediumAquaMarinebold <-
+                    paste0(
+                      '<span style = "color:MediumAquaMarine;font-weight:bold">',
+                      as.character(complement(ntsstop()[stopstart:stopend])),
+                      '</span>'
+                    )
+                  MediumAquaMarine <-
+                    paste0(
+                      '<span style = "color:MediumAquaMarine">',
+                      as.character(complement(ntsstop()[(stopend + 1):(pamstart + nchar(sortedallpam$PAM[i]) - 1)])),
+                      '</span>'
+                    )
+                }
+                else if (stopstart + 1 == pamstart) {
+                  bluebold <-
+                    paste0(
+                      '<span style = "color:orange;font-weight:bold">',
+                      as.character(complement(ntsstop()[stopstart:stopstart])),
+                      '</span>'
+                    )
+                  bluef <- ""
+                  MediumAquaMarinebold <-
+                    paste0(
+                      '<span style = "color:MediumAquaMarine;font-weight:bold">',
+                      as.character(complement(ntsstop()[(stopstart + 1):stopend])),
+                      '</span>'
+                    )
+                  MediumAquaMarine <-
+                    paste0(
+                      '<span style = "color:MediumAquaMarine">',
+                      as.character(complement(ntsstop()[(stopend + 1):(pamstart + nchar(sortedallpam$PAM[i]) - 1)])),
+                      '</span>'
+                    )
+                } else if (stopstart + 2 == pamstart) {
+                  bluebold <-
+                    paste0(
+                      '<span style = "color:orange;font-weight:bold">',
+                      as.character(complement(ntsstop()[stopstart:(stopstart + 1)])),
+                      '</span>'
+                    )
+                  bluef <- ""
+                  MediumAquaMarinebold <-
+                    paste0(
+                      '<span style = "color:MediumAquaMarine;font-weight:bold">',
+                      as.character(complement(ntsstop()[stopend:stopend])),
+                      '</span>'
+                    )
+                  MediumAquaMarine <-
+                    paste0(
+                      '<span style = "color:MediumAquaMarine">',
+                      as.character(complement(ntsstop()[(stopend + 1):(pamstart + nchar(sortedallpam$PAM[i]) - 1)])),
+                      '</span>'
+                    )
+                }
+                else if (stopstart + 3 == pamstart) {
+                  bluebold <-
+                    paste0(
+                      '<span style = "color:orange;font-weight:bold">',
+                      as.character(complement(ntsstop()[stopstart:stopend])),
+                      '</span>'
+                    )
+                  bluef <- ""
+                  MediumAquaMarinebold <- ""
+                  MediumAquaMarine <-
+                    paste0(
+                      '<span style = "color:MediumAquaMarine">',
+                      as.character(complement(ntsstop()[pamstart:(pamstart + nchar(sortedallpam$PAM[i]) - 1)])),
+                      '</span>'
+                    )
+                } else if (stopstart + 3 < pamstart) {
+                  bluebold <-
+                    paste0(
+                      '<span style = "color:orange;font-weight:bold">',
+                      as.character(complement(ntsstop()[stopstart:stopend])),
+                      '</span>'
+                    )
+                  bluef <-
+                    paste0(
+                      '<span style = "color:orange">',
+                      as.character(complement(ntsstop()[(stopend + 1):(pamstart - 1)])),
+                      '</span>'
+                    )
+                  MediumAquaMarinebold <- ""
+                  MediumAquaMarine <-
+                    paste0(
+                      '<span style = "color:MediumAquaMarine">',
+                      as.character(complement(ntsstop()[pamstart:(pamstart + nchar(sortedallpam$PAM[i]) - 1)])),
+                      '</span>'
+                    )
+                }
+                summary$Target[i] <-
+                  paste0(
+                    paste0(
+                      as.character(ntsstop()[1:(
+                        nchar(ntsstop()) - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) - 10 - 23 + 1
+                      )]),
+                      '<sup>&#9660;</sup>',
+                      '<span style = "text-decoration: underline">',
+                      as.character(ntsstop()[(
+                        nchar(ntsstop()) - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) - 10 - 22 + 1
+                      ):(
+                        nchar(ntsstop()) - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) - 10 - 22 + 1 + 4
+                      )]),
+                      '</span>',
+                      '<span style = "color:GhostWhite">',
+                      "_",
+                      '</span>',
+                      as.character(ntsstop()[(
+                        nchar(ntsstop()) - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) - 10 - 22 + 1 + 5
+                      ):(stopstart - 1)]),
+                      strong(as.character(ntsstop()[(stopstart):(stopend)])),
+                      as.character(ntsstop()[(stopend + 1):nchar(ntsstop())])
+                    ),
+                    '<br>',
+                    paste0(
+                      blackr,
+                      bluerr,
+                      '<sub>&#9650;</sub>',
+                      bluer,
+                      bluebold,
+                      bluef,
+                      MediumAquaMarinebold,
+                      MediumAquaMarine,
+                      blackf
+                    )
+                  )
+              }
+              else if (sortedallpam$strand[i] == "direct*") {
+                reversestrand <- paste0(
+                  complement(DNAString(
+                    substr(targetseq(), 194, 200)
+                  )),
+                  strong(complement(DNAString(
+                    substr(targetseq(), 201, 203)
+                  ))),
+                  complement(DNAString(substr(
+                    targetseq(),
+                    (203 + 1),
+                    (
+                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 17
+                    )
+                  ))),
+                  '<span style = "color:GhostWhite">',
+                  "_",
+                  '</span>',
+                  '<span style = "text-decoration: underline">',
+                  complement(DNAString(substr(
+                    targetseq(),
+                    (
+                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 18
+                    ),
+                    (
+                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 22
+                    )
+                  ))),
+                  '</span>',
+                  '<sub>&#9650;</sub>',
+                  complement(DNAString(substr(
+                    targetseq(),
+                    (
+                      200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 23
+                    ),
+                    (204 + 17 + 125)
+                  )))
+                )
+                if (sortedallpam$start[i] == 1) {
+                  directstrand <- paste0(
+                    substr(targetseq(), 194, 200),
+                    '<span style = "color:MediumVioletRed">',
+                    strong(substr(targetseq(), 201, 203)),
+                    substr(targetseq(),
+                           204,
+                           204),
+                    '</span>',
+                    '<span style = "color:orange">',
+                    substr(
+                      targetseq(),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i])
+                      ),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 17
+                      )
+                    ),
+                    '</span>',
+                    '<sup>&#9660;</sup>',
+                    '<span style = "text-decoration: underline; text-decoration-color: black;">',
+                    '<span style = "color:orange">',
+                    substr(
+                      targetseq(),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 18
+                      ),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 19
+                      )
+                    ),
+                    '</span>',
+                    substr(
+                      targetseq(),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 20
+                      ),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 22
+                      )
+                    ),
+                    '</span>',
+                    '<span style = "color:GhostWhite">',
+                    "_",
+                    '</span>',
+                    substr(
+                      targetseq(),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 23
+                      ),
+                      (204 + 17 + 125)
+                    )
+                  )
+                } else if (sortedallpam$start[i] == 2) {
+                  directstrand <- paste0(
+                    substr(targetseq(), 194, 200),
+                    strong(substr(targetseq(), 201, 201)),
+                    '<span style = "color:MediumVioletRed">',
+                    strong(substr(targetseq(), 202, 203)),
+                    substr(targetseq(),
+                           203, 204),
+                    '</span>',
+                    '<span style = "color:orange">',
+                    substr(
+                      targetseq(),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i])
+                      ),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 17
+                      )
+                    ),
+                    '</span>',
+                    '<sup>&#9660;</sup>',
+                    '<span style = "text-decoration: underline; text-decoration-color: black;">',
+                    '<span style = "color:orange">',
+                    substr(
+                      targetseq(),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 18
+                      ),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 19
+                      )
+                    ),
+                    '</span>',
+                    substr(
+                      targetseq(),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 20
+                      ),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 22
+                      )
+                    ),
+                    '</span>',
+                    '<span style = "color:GhostWhite">',
+                    "_",
+                    '</span>',
+                    substr(
+                      targetseq(),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 23
+                      ),
+                      (204 + 17 + 125)
+                    )
+                  )
+                } else if (sortedallpam$start[i] == 3) {
+                  directstrand <- paste0(
+                    substr(targetseq(), 194, 200),
+                    strong(substr(targetseq(), 201, 202)),
+                    '<span style = "color:MediumVioletRed">',
+                    strong(substr(targetseq(), 203, 203)),
+                    substr(targetseq(),
+                           204, 204),
+                    '</span>',
+                    '<span style = "color:orange">',
+                    substr(
+                      targetseq(),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i])
+                      ),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 17
+                      )
+                    ),
+                    '</span>',
+                    '<sup>&#9660;</sup>',
+                    '<span style = "text-decoration: underline; text-decoration-color: black;">',
+                    '<span style = "color:orange">',
+                    substr(
+                      targetseq(),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 18
+                      ),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 19
+                      )
+                    ),
+                    '</span>',
+                    substr(
+                      targetseq(),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 20
+                      ),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 22
+                      )
+                    ),
+                    '</span>',
+                    '<span style = "color:GhostWhite">',
+                    "_",
+                    '</span>',
+                    substr(
+                      targetseq(),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 23
+                      ),
+                      (204 + 17 + 125)
+                    )
+                  )
+                } else {
+                  directstrand <- paste0(
+                    substr(targetseq(), 194, 200),
+                    strong(substr(targetseq(), 201, 203)),
+                    substr(
+                      targetseq(),
+                      (203 + 1),
+                      (200 + sortedallpam$start[i] - 1)
+                    ),
+                    '<span style = "color:MediumVioletRed">',
+                    substr(
+                      targetseq(),
+                      (200 + sortedallpam$start[i]),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) - 1
+                      )
+                    ),
+                    '</span>',
+                    '<span style = "color:orange">',
+                    substr(
+                      targetseq(),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i])
+                      ),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 17
+                      )
+                    ),
+                    '</span>',
+                    '<sup>&#9660;</sup>',
+                    '<span style = "text-decoration: underline; text-decoration-color: black;">',
+                    '<span style = "color:orange">',
+                    substr(
+                      targetseq(),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 18
+                      ),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 19
+                      )
+                    ),
+                    '</span>',
+                    substr(
+                      targetseq(),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 20
+                      ),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 22
+                      )
+                    ),
+                    '</span>',
+                    '<span style = "color:GhostWhite">',
+                    "_",
+                    '</span>',
+                    substr(
+                      targetseq(),
+                      (
+                        200 + sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 23
+                      ),
+                      (204 + 17 + 125)
+                    )
+                  )
+                }
+                summary$Target[i] <- paste0(directstrand,
+                                            '<br>',
+                                            reversestrand)
+              }
+              else if (sortedallpam$strand[i] == "reverse*") {
+                blackr <- complement(DNAString(substr(targetseq(), 194, 200)))
+                MediumVioletRed <-
+                  complement(DNAString(substr(
+                    targetseq(),
+                    (
+                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2
+                    ),
+                    (203 + rvei$data - sortedallpam$start[i] + 1)
+                  )))
+                blackf <-
+                  complement(DNAString(substr(
+                    targetseq(),
+                    (203 + rvei$data - sortedallpam$start[i] + 2),
+                    (204 + 17 + 125)
+                  )))
+                # more than 3 nt distance between stop and crRNA end
+                if ((rvei$data - sortedallpam$start[i] - 2) > (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
+                  blackbold <-
+                    strong(complement(DNAString(
+                      substr(targetseq(), 201, 203)
+                    )))
+                  blackrr <-
+                    paste0(
+                      complement(DNAString(
+                        substr(
+                          targetseq(),
+                          204,
+                          (
+                            203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 23
+                          )
+                        )
+                      )),
+                      '<span style = "color:GhostWhite">',
+                      "_",
+                      '</span>',
+                      '<span style = "text-decoration: underline">',
+                      complement(DNAString(
+                        substr(
+                          targetseq(),
+                          (
+                            203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 22
+                          ),
+                          (
+                            203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 20
+                          )
+                        )
+                      )),
+                      '</span>'
+                    )
+                  bluebold <- ""
+                  bluer <-
+                    complement(DNAString(substr(
+                      targetseq(),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 19
+                      ),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 18
+                      )
+                    )))
+                  blue <-
+                    complement(DNAString(substr(
+                      targetseq(),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 17
+                      ),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1
+                      )
+                    )))
+                  directstrand <- paste0(
+                    substr(targetseq(), 194, 200),
+                    strong(substr(targetseq(), 201, 203)),
+                    substr(
+                      targetseq(),
+                      204,
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 23
+                      )
+                    ),
+                    '<sup>&#9660;</sup>',
+                    '<span style = "text-decoration: underline">',
+                    substr(
+                      targetseq(),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 22
+                      ),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 18
+                      )
+                    ),
+                    '</span>',
+                    '<span style = "color:GhostWhite">',
+                    "_",
+                    '</span>',
+                    substr(
+                      targetseq(),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 17
+                      ),
+                      (204 + 17 + 125)
+                    )
+                  )
+                  # 3 nt distance between stop and crRNA end
+                }
+                else if ((rvei$data - sortedallpam$start[i] - 2) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
+                  blackbold <-
+                    paste0(
+                      strong(complement(DNAString(
+                        substr(targetseq(), 201, 203)
+                      ))),
+                      '<span style = "color:GhostWhite">',
+                      "_",
+                      '</span>'
+                    )
+                  blackrr <-
+                    paste0(
+                      '<span style = "text-decoration: underline">',
+                      complement(DNAString(
+                        substr(targetseq(), 204, 206)
+                      )),
+                      '</span>'
+                    )
+                  bluebold <- ""
+                  bluer <-
+                    complement(DNAString(substr(
+                      targetseq(),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 19
+                      ),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 18
+                      )
+                    )))
+                  blue <-
+                    complement(DNAString(substr(
+                      targetseq(),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 17
+                      ),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1
+                      )
+                    )))
+                  directstrand <- paste0(
+                    substr(targetseq(), 194, 200),
+                    strong(substr(targetseq(), 201, 203)),
+                    '<sup>&#9660;</sup>',
+                    '<span style = "text-decoration: underline">',
+                    substr(targetseq(), 204, 208),
+                    '</span>',
+                    '<span style = "color:GhostWhite">',
+                    "_",
+                    '</span>',
+                    substr(targetseq(), 209, (204 + 17 + 125))
+                  )
+                  # 2 nt distance between stop and crRNA end
+                } else if ((rvei$data - sortedallpam$start[i] - 1) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
+                  oligorank[i] <- oligorank[i] + 1
+                  blackbold <-
+                    paste0(
+                      strong(complement(DNAString(
+                        substr(targetseq(), 201, 202)
+                      ))),
+                      '<span style = "color:GhostWhite">',
+                      "_",
+                      '</span>',
+                      '<span style = "text-decoration: underline">',
+                      strong(complement(DNAString(
+                        substr(targetseq(), 203, 203)
+                      ))),
+                      '</span>'
+                    )
+                  blackrr <-
+                    paste0(
+                      '<span style = "text-decoration: underline">',
+                      complement(DNAString(
+                        substr(targetseq(), 204, 205)
+                      )),
+                      '</span>'
+                    )
+                  bluebold <- ""
+                  bluer <-
+                    complement(DNAString(substr(
+                      targetseq(),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 19
+                      ),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 18
+                      )
+                    )))
+                  blue <-
+                    complement(DNAString(substr(
+                      targetseq(),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 17
+                      ),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1
+                      )
+                    )))
+                  directstrand <- paste0(
+                    substr(targetseq(), 194, 200),
+                    strong(substr(targetseq(), 201, 202)),
+                    '<sup>&#9660;</sup>',
+                    '<span style = "text-decoration: underline">',
+                    strong(substr(targetseq(), 203, 203)),
+                    substr(targetseq(), 204, 207),
+                    '</span>',
+                    '<span style = "color:GhostWhite">',
+                    "_",
+                    '</span>',
+                    substr(targetseq(), 208, (204 + 17 + 125))
+                  )
+                  # 1 nt distance between stop and crRNA end
+                }
+                else if ((rvei$data - sortedallpam$start[i]) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
+                  oligorank[i] <- oligorank[i] + 1
+                  blackbold <-
+                    paste0(
+                      strong(complement(DNAString(
+                        substr(targetseq(), 201, 201)
+                      ))),
+                      '<span style = "color:GhostWhite">',
+                      "_",
+                      '</span>',
+                      '<span style = "text-decoration: underline">',
+                      strong(complement(DNAString(
+                        substr(targetseq(), 202, 203)
+                      ))),
+                      '</span>'
+                    )
+                  blackrr <-
+                    paste0(
+                      '<span style = "text-decoration: underline">',
+                      complement(DNAString(
+                        substr(targetseq(), 204, 204)
+                      )),
+                      '</span>'
+                    )
+                  bluebold <- ""
+                  bluer <-
+                    complement(DNAString(substr(
+                      targetseq(),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 19
+                      ),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 18
+                      )
+                    )))
+                  blue <-
+                    complement(DNAString(substr(
+                      targetseq(),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 17
+                      ),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1
+                      )
+                    )))
+                  directstrand <- paste0(
+                    substr(targetseq(), 194, 200),
+                    strong(substr(targetseq(), 201, 201)),
+                    '<sup>&#9660;</sup>',
+                    '<span style = "text-decoration: underline">',
+                    strong(substr(targetseq(), 202, 203)),
+                    substr(targetseq(), 204, 206),
+                    '</span>',
+                    '<span style = "color:GhostWhite">',
+                    "_",
+                    '</span>',
+                    substr(targetseq(), 207, (204 + 17 + 125))
+                  )
+                  # no distance between stop and crRNA end
+                } else if ((rvei$data - sortedallpam$start[i] + 1) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
+                  oligorank[i] <- oligorank[i] + 1
+                  blackbold <-
+                    paste0(
+                      '<span style = "color:GhostWhite">',
+                      "_",
+                      '</span>',
+                      '<span style = "text-decoration: underline">',
+                      strong(complement(DNAString(
+                        substr(targetseq(), 201, 203)
+                      ))),
+                      '</span>'
+                    )
+                  blackrr <- ""
+                  bluebold <- ""
+                  bluer <-
+                    complement(DNAString(substr(
+                      targetseq(),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 19
+                      ),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 18
+                      )
+                    )))
+                  blue <-
+                    complement(DNAString(substr(
+                      targetseq(),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1 - 17
+                      ),
+                      (
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 1
+                      )
+                    )))
+                  directstrand <- paste0(
+                    substr(targetseq(), 194, 200),
+                    '<sup>&#9660;</sup>',
+                    '<span style = "text-decoration: underline">',
+                    strong(substr(targetseq(), 201, 203)),
+                    substr(targetseq(), 204, 205),
+                    '</span>',
+                    '<span style = "color:GhostWhite">',
+                    "_",
+                    '</span>',
+                    substr(targetseq(), 206, (204 + 17 + 125))
+                  )
+                }
+                # crRNA end overlaps with the STOP codon - 1 nt
+                else if ((rvei$data - sortedallpam$start[i] + 2) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
+                  oligorank[i] <- oligorank[i] + 1
+                  blackr <-
+                    complement(DNAString(substr(targetseq(), 194, 199)))
+                  blackbold <-
+                    paste0(
+                      '<span style = "color:GhostWhite">',
+                      "_",
+                      '</span>',
+                      '<span style = "text-decoration: underline; text-decoration-color: black;">',
+                      complement(DNAString(
+                        substr(targetseq(), 200, 200)
+                      )),
+                      strong(complement(DNAString(
+                        substr(targetseq(), 201, 202)
+                      ))),
+                      '<span style = "color:orange">',
+                      strong(complement(DNAString(
+                        substr(targetseq(), 203, 203)
+                      ))),
+                      complement(DNAString(
+                        substr(targetseq(), 204, 204)
+                      )),
+                      '</span>',
+                      '</span>'
+                    )
+                  blackrr <- ""
+                  bluebold <- ""
+                  bluer <- ""
+                  blue <-
+                    complement(DNAString(substr(
+                      targetseq(), 205, 205 + 18 - 1
+                    )))
+                  directstrand <- paste0(
+                    substr(targetseq(), 194, 199),
+                    '<sup>&#9660;</sup>',
+                    '<span style = "text-decoration: underline">',
+                    substr(targetseq(), 200, 200),
+                    strong(substr(targetseq(), 201, 203)),
+                    substr(targetseq(), 204, 204),
+                    '</span>',
+                    '<span style = "color:GhostWhite">',
+                    "_",
+                    '</span>',
+                    substr(targetseq(), 205, (204 + 17 + 125))
+                  )
+                }
+                # crRNA end overlaps with the STOP codon - 2 nt
+                else if ((rvei$data - sortedallpam$start[i] + 3) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
+                  oligorank[i] <- oligorank[i] + 1
+                  blackr <-
+                    complement(DNAString(substr(targetseq(), 194, 198)))
+                  blackbold <-
+                    paste0(
+                      '<span style = "color:GhostWhite">',
+                      "_",
+                      '</span>',
+                      '<span style = "text-decoration: underline; text-decoration-color: black;">',
+                      complement(DNAString(
+                        substr(targetseq(), 199, 200)
+                      )),
+                      strong(complement(DNAString(
+                        substr(targetseq(), 201, 201)
+                      ))),
+                      '<span style = "color:orange">',
+                      strong(complement(DNAString(
+                        substr(targetseq(), 202, 203)
+                      ))),
+                      '</span>',
+                      '</span>'
+                    )
+                  blackrr <- ""
+                  bluebold <- ""
+                  bluer <- ""
+                  blue <-
+                    complement(DNAString(substr(
+                      targetseq(), 204, 204 + 18 - 1
+                    )))
+                  directstrand <- paste0(
+                    substr(targetseq(), 194, 198),
+                    '<sup>&#9660;</sup>',
+                    '<span style = "text-decoration: underline">',
+                    substr(targetseq(), 199, 200),
+                    strong(substr(targetseq(), 201, 203)),
+                    '</span>',
+                    '<span style = "color:GhostWhite">',
+                    "_",
+                    '</span>',
+                    substr(targetseq(), 204, (204 + 17 + 125))
+                  )
+                }
+                # crRNA end overlaps with the STOP codon - 3 nt
+                else if ((rvei$data - sortedallpam$start[i] + 4) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
+                  oligorank[i] <- oligorank[i] + 1
+                  blackr <-
+                    complement(DNAString(substr(targetseq(), 194, 197)))
+                  blackbold <-
+                    paste0(
+                      '<span style = "color:GhostWhite">',
+                      "_",
+                      '</span>',
+                      '<span style = "text-decoration: underline; text-decoration-color: black;">',
+                      complement(DNAString(
+                        substr(targetseq(), 198, 200)
+                      )),
+                      '<span style = "color:orange">',
+                      strong(complement(DNAString(
+                        substr(targetseq(), 201, 202)
+                      ))),
+                      '</span>',
+                      '</span>'
+                    )
+                  blackrr <- ""
+                  bluebold <- ""
+                  bluer <- ""
+                  blue <-
+                    paste0(strong(complement(DNAString(
+                      substr(targetseq(), 203, 203)
+                    ))),
+                    complement(DNAString(
+                      substr(targetseq(), 204, 204 + 17 - 1)
+                    )))
+                  directstrand <- paste0(
+                    substr(targetseq(), 194, 197),
+                    '<sup>&#9660;</sup>',
+                    '<span style = "text-decoration: underline">',
+                    substr(targetseq(), 198, 200),
+                    strong(substr(targetseq(), 201, 202)),
+                    '</span>',
+                    '<span style = "color:GhostWhite">',
+                    "_",
+                    '</span>',
+                    strong(substr(targetseq(), 203, 203)),
+                    substr(targetseq(), 204, (204 + 17 + 125))
+                  )
+                }
+                # crRNA end overlaps with the STOP codon - 3 nt + 1
+                else if ((rvei$data - sortedallpam$start[i] + 5) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
+                  oligorank[i] <- oligorank[i] + 1
+                  blackr <-
+                    complement(DNAString(substr(targetseq(), 194, 196)))
+                  blackbold <-
+                    paste0(
+                      '<span style = "color:GhostWhite">',
+                      "_",
+                      '</span>',
+                      '<span style = "text-decoration: underline; text-decoration-color: black;">',
+                      complement(DNAString(
+                        substr(targetseq(), 197, 199)
+                      )),
+                      '<span style = "color:orange">',
+                      complement(DNAString(
+                        substr(targetseq(), 200, 200)
+                      )),
+                      strong(complement(DNAString(
+                        substr(targetseq(), 201, 201)
+                      ))),
+                      '</span>',
+                      '</span>'
+                    )
+                  blackrr <- ""
+                  bluebold <- ""
+                  bluer <- ""
+                  blue <-
+                    paste0(strong(complement(DNAString(
+                      substr(targetseq(), 202, 203)
+                    ))),
+                    complement(DNAString(
+                      substr(targetseq(), 203, 203 + 16 - 1)
+                    )))
+                  directstrand <- paste0(
+                    substr(targetseq(), 194, 196),
+                    '<sup>&#9660;</sup>',
+                    '<span style = "text-decoration: underline">',
+                    substr(targetseq(), 197, 200),
+                    strong(substr(targetseq(), 201, 201)),
+                    '</span>',
+                    '<span style = "color:GhostWhite">',
+                    "_",
+                    '</span>',
+                    strong(substr(targetseq(), 202, 203)),
+                    substr(targetseq(), 204, (204 + 17 + 125))
+                  )
+                }
+                # crRNA end overlaps with the STOP codon - 3 nt + 2
+                else if ((rvei$data - sortedallpam$start[i] + 6) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
+                  oligorank[i] <- oligorank[i] + 1
+                  blackr <-
+                    complement(DNAString(substr(targetseq(), 194, 195)))
+                  blackbold <-
+                    paste0(
+                      '<span style = "color:GhostWhite">',
+                      "_",
+                      '</span>',
+                      '<span style = "text-decoration: underline; text-decoration-color: black;">',
+                      complement(DNAString(
+                        substr(targetseq(), 196, 198)
+                      )),
+                      '<span style = "color:orange">',
+                      complement(DNAString(
+                        substr(targetseq(), 199, 200)
+                      )),
+                      '</span>',
+                      '</span>'
+                    )
+                  blackrr <- ""
+                  bluebold <- ""
+                  bluer <- ""
+                  blue <-
+                    paste0(strong(complement(DNAString(
+                      substr(targetseq(), 201, 203)
+                    ))),
+                    complement(DNAString(
+                      substr(targetseq(), 203, 203 + 15 - 1)
+                    )))
+                  directstrand <- paste0(
+                    substr(targetseq(), 194, 195),
+                    '<sup>&#9660;</sup>',
+                    '<span style = "text-decoration: underline">',
+                    substr(targetseq(), 196, 200),
+                    '</span>',
+                    '<span style = "color:GhostWhite">',
+                    "_",
+                    '</span>',
+                    strong(substr(targetseq(), 201, 203)),
+                    substr(targetseq(), 204, (204 + 17 + 125))
+                  )
+                }
+                # crRNA end overlaps with the STOP codon - 3 nt + 3
+                else if ((rvei$data - sortedallpam$start[i] + 7) == (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
+                  oligorank[i] <- oligorank[i] + 1
+                  blackr <-
+                    complement(DNAString(substr(targetseq(), 194, 194)))
+                  blackbold <-
+                    paste0(
+                      '<span style = "color:GhostWhite">',
+                      "_",
+                      '</span>',
+                      '<span style = "text-decoration: underline; text-decoration-color: black;">',
+                      complement(DNAString(
+                        substr(targetseq(), 195, 197)
+                      )),
+                      '<span style = "color:orange">',
+                      complement(DNAString(
+                        substr(targetseq(), 198, 199)
+                      )),
+                      '</span>',
+                      '</span>'
+                    )
+                  blackrr <- ""
+                  bluebold <- ""
+                  bluer <- ""
+                  blue <-
+                    paste0(
+                      complement(DNAString(
+                        substr(targetseq(), 199, 200)
+                      )),
+                      strong(complement(DNAString(
+                        substr(targetseq(), 201, 203)
+                      ))),
+                      complement(DNAString(
+                        substr(targetseq(), 204, 204 + 14 - 1)
+                      ))
+                    )
+                  directstrand <- paste0(
+                    substr(targetseq(), 194, 194),
+                    '<sup>&#9660;</sup>',
+                    '<span style = "text-decoration: underline">',
+                    substr(targetseq(), 195, 199),
+                    '</span>',
+                    '<span style = "color:GhostWhite">',
+                    "_",
+                    '</span>',
+                    substr(targetseq(), 199, 200),
+                    strong(substr(targetseq(), 201, 203)),
+                    substr(targetseq(), 204, (204 + 17 + 125))
+                  )
+                }
+                else if ((rvei$data - sortedallpam$start[i] + 7) < (nchar(crRNAs[i]) + nchar(sortedallpam$PAM[i]))) {
+                  oligorank[i] <- oligorank[i] + 1
+                  blackr <-
+                    complement(DNAString(substr(targetseq(), 194, 194)))
+                  blackbold <-
+                    paste0(
+                      '<span style = "color:GhostWhite">',
+                      "_",
+                      '</span>',
+                      '<span style = "text-decoration: underline; text-decoration-color: black;">',
+                      complement(DNAString(
+                        substr(targetseq(), 195, 197)
+                      )),
+                      '<span style = "color:orange">',
+                      complement(DNAString(
+                        substr(targetseq(), 198, 199)
+                      )),
+                      '</span>',
+                      '</span>',
+                      '<span style = "color:orange">',
+                      complement(DNAString(
+                        substr(targetseq(), 199, 200)
+                      )),
+                      '</span>'
+                    )
+                  blackrr <- ""
+                  bluebold <-
+                    paste0(strong(complement(DNAString(
+                      substr(targetseq(), 201, 203)
+                    ))))
+                  bluer <- ""
+                  blue <-
+                    complement(DNAString(substr(
+                      targetseq(), 203, 203 + 14 - 1
+                    )))
+                  directstrand <- paste0(
+                    substr(targetseq(), 194, 194),
+                    '<sup>&#9660;</sup>',
+                    '<span style = "text-decoration: underline">',
+                    substr(targetseq(), 195, 199),
+                    '</span>',
+                    '<span style = "color:GhostWhite">',
+                    "_",
+                    '</span>',
+                    substr(targetseq(), 199, 200),
+                    strong(substr(targetseq(), 201, 203)),
+                    substr(targetseq(), 204, (204 + 17 + 125))
+                  )
+                }
+                summary$Target[i] <- paste0(
+                  directstrand,
+                  '<br>',
+                  paste0(
+                    blackr,
+                    blackbold,
+                    '<span style = "color:orange;font-weight:bold">',
+                    bluebold,
+                    '</span>',
+                    blackrr,
+                    '<span style = "color:orange; text-decoration: underline; text-decoration-color: black;">',
+                    bluer,
+                    '</span>',
+                    '<sub>&#9650;</sub>',
+                    '<span style = "color:orange">',
+                    blue,
+                    '</span>',
+                    '<span style = "color:MediumVioletRed">',
+                    MediumVioletRed,
+                    '</span>',
+                    blackf
+                  )
+                )
+              }
+              
+              # End of target sequence formatting ---------------------------------------
+              
+              # Output table for download, without html-formatting
+              csvoutput$`Cas12a (Cpf1)`[i] <- cpfname[i]
+              csvoutput$PAM[i] <- sortedallpam$PAM[i]
+              csvoutput$Strand[i] <-
+                as.character(sortedallpam$strand[i])
+              csvoutput$`crRNA (direct repeat + spacer)`[i] <-
+                paste0(as.character(crRNAdr[i]),
+                       gsub("T", "U", reverseComplement(DNAString(
+                         crRNAs[i]
+                       ))))
+              csvoutput$`Suggested name`[i] <- sugname[i]
+              if ((sortedallpam$strand[i] == "direct") |
+                  (sortedallpam$strand[i] == "reverse")) {
+                if (input$phospho == 1) {
+                  modha <- ""
+                  for (j in (1:rvpn$data)) {
+                    modelement <- paste0(as.character(reverseComplement(
+                      DNAString(targetseq())[(200 + 4 + rvthree$data - 1 - j + 1)]
+                    )), "*")
+                    modha <- paste0(modha, modelement)
+                  }
+                  modharest <-
+                    as.character(reverseComplement(DNAString(targetseq())[(200 + 4):(200 + 4 + rvthree$data - 1 - rvpn$data)]))
+                  csvoutput$Sequence[i] <-
+                    paste0(modha,
+                           modharest,
+                           "AAAAAA",
+                           crRNAs[i],
+                           dr[i],
+                           "GCTAGCTGCATCGGTACC")
+                } else {
+                  csvoutput$Sequence[i] <-
+                    paste0(
+                      as.character(reverseComplement(
+                        DNAString(targetseq())[(200 + 4):(200 + 4 + rvthree$data - 1)]
+                      )),
+                      "AAAAAA",
+                      crRNAs[i],
+                      dr[i],
+                      "GCTAGCTGCATCGGTACC"
+                    )
+                }
+              }
+              else if (sortedallpam$strand[i] == "direct*") {
+                csvoutput$Strand[i] <- "direct"
+                if (input$phospho == 1) {
+                  modha <- ""
+                  for (j in (1:rvpn$data)) {
+                    modelement <- paste0(as.character(reverseComplement(
+                      DNAString(targetseq())[(
+                        sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 200 + nchar(crRNAs[i]) + rvthree$data - 1 - j + 1
+                      )]
+                    )), "*")
+                    modha <- paste0(modha, modelement)
+                  }
+                  modharest <-
+                    as.character(reverseComplement(DNAString(targetseq())[(
+                      sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 200 + nchar(crRNAs[i])
+                    ):(
+                      sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 200 + nchar(crRNAs[i]) + rvthree$data - 1 - rvpn$data
+                    )]))
+                  csvoutput$Sequence[i] <-
+                    paste0(modha,
+                           modharest,
+                           "AAAAAA",
+                           crRNAs[i],
+                           dr[i],
+                           "GCTAGCTGCATCGGTACC")
+                } else {
+                  csvoutput$Sequence[i] <-
+                    paste0(
+                      as.character(reverseComplement(
+                        DNAString(targetseq())[(
+                          sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 203 + nchar(crRNAs[i])
+                        ):(
+                          sortedallpam$start[i] + nchar(sortedallpam$PAM[i]) + 203 + nchar(crRNAs[i]) + rvthree$data - 1
+                        )]
+                      )),
+                      "AAAAAA",
+                      crRNAs[i],
+                      dr[i],
+                      "GCTAGCTGCATCGGTACC"
+                    )
+                }
+              } else if (sortedallpam$strand[i] == "reverse*") {
+                csvoutput$Strand[i] <- "reverse"
+                if (input$phospho == 1) {
+                  modha <- ""
+                  for (j in (1:rvpn$data)) {
+                    modelement <- paste0(as.character(reverseComplement(
+                      DNAString(targetseq())[(
+                        203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2 + rvthree$data - 1 - j + 1
+                      )]
+                    )), "*")
+                    modha <- paste0(modha, modelement)
+                  }
+                  modharest <-
+                    as.character(reverseComplement(DNAString(targetseq())[(203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2):(
+                      203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2 + rvthree$data - 1 - rvpn$data
+                    )]))
+                  csvoutput$Sequence[i] <-
+                    paste0(
+                      modha,
+                      modharest,
+                      "AAAAAA",
+                      crRNAs[i],
+                      dr[i],
+                      "GCTAGCTGCATCGGTACC",
+                      sep = ""
+                    )
+                } else {
+                  csvoutput$Sequence[i] <-
+                    paste0(
+                      as.character(reverseComplement(
+                        DNAString(targetseq())[(203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2):(
+                          203 + rvei$data - sortedallpam$start[i] - nchar(sortedallpam$PAM[i]) + 2 + rvthree$data - 1
+                        )]
+                      )),
+                      "AAAAAA",
+                      crRNAs[i],
+                      dr[i],
+                      "GCTAGCTGCATCGGTACC",
+                      sep = ""
+                    )
+                }
+              }
+              csvoutput$Length[i] <-
+                paste(format(round(nchar(
+                  paste(
+                    as.character(reverseComplement(DNAString(
+                      targetseq()
+                    )[(200 + 4):(200 + 4 + rvthree$data - 1)])),
+                    "AAAAAA",
+                    crRNAs[i],
+                    dr[i],
+                    "GCTAGCTGCATCGGTACC",
+                    sep = ""
+                  )
+                ), 0), nsmall = 0), " nt")
+              csvoutput <-
+                csvoutput[-c(pamnumber + 1, pamnumber + 2, pamnumber + 3), ]
+              csvoutput$Target <- NULL
+              # Increment the progress bar, and update the detail text.
+              incProgress(1 / pamnumber,
+                          detail = paste("Reverse oligo", i, "/", pamnumber))
+              
+              # Pause for 0.1 seconds to simulate a long computation.
+              #Sys.sleep(0.1)
+            }
+          })
           # Reverse oligo - result table column names
           colnames(summary)[colnames(summary) == "Sequence"] <-
             paste0(
@@ -3195,6 +3485,7 @@ server <- function(input, output, session)
           showElement("inp_apply")
           showElement("downloadcsv")
           showElement("downloadxlsx")
+          showElement("report")
           observeEvent (input$compute, {
             if ("Other" %in% input$inp_cpf) {
               output$cpf <- renderTable({
@@ -3239,7 +3530,7 @@ server <- function(input, output, session)
                 x)
             }
           })
-          csvoutputr <- NULL
+          csvoutputr <<- NULL
           csvoutpute <- NULL
           
           # PAM sites found in the 17 nt search space -------------------------------
@@ -3247,6 +3538,7 @@ server <- function(input, output, session)
           if (length(allpammd) + length(allpammr) > 0) {
             enable("downloadcsv")
             enable("downloadxlsx")
+            enable("report")
             summaryr <-
               # First part of the reverse oligo output table with PAM sites found in the 17 nt search space
               summary [c(1:(length(allpammd) + length(allpammr))), ]
@@ -3278,26 +3570,28 @@ server <- function(input, output, session)
             rv$data <- summaryr
             output$nextstep <-
               renderText({
-                paste0('<br>',
-                       '<br>',
-                       "Next step: Order oligos",
-                       '<br>',
-                       '<br>',
-                       '<br>')
+                paste0(
+                  '<br>',
+                  '<br>',
+                  "We suggest aligning the oligos to the target before ordering them.",
+                  '<br>',
+                  '<br>',
+                  '<br>'
+                )
               })
             showElement("nextstep")
             # Reverse oligos for the 17 nt search space for download
-            csvoutputr <-
+            csvoutputr <<-
               csvoutput [c(1:(length(allpammd) + length(allpammr))), ]
             oligorankr <-
               oligorank[((1:(
                 length(allpammd) + length(allpammr)
               )))]
-            csvoutputr <-
+            csvoutputr <<-
               csvoutputr[order(sortedallpam$distance[1:(length(allpammd) + length(allpammr))]), ]
             oligorankr <-
               oligorankr[order(sortedallpam$distance[1:(length(allpammd) + length(allpammr))])]
-            csvoutputr <- csvoutputr[order(oligorankr), ]
+            csvoutputr <<- csvoutputr[order(oligorankr), ]
             oligorankr <- sort(oligorankr)
             for (i in (1:(length(allpammd) + length(allpammr)))) {
               if (oligorankr[i] > 5)
@@ -3326,6 +3620,8 @@ server <- function(input, output, session)
             confinedlist <- # For the .xlsx output
               list('17 nt search space' = csvoutputr,
                    'Forward oligo' = csvforward)
+            revreport <<- csvoutputr
+            row.names(revreport) <<- revreport[, 4]
             
             # PAM sites found in the extended search space ----------------------------
             
@@ -3421,10 +3717,12 @@ server <- function(input, output, session)
                   'Extended search space' = csvoutpute,
                   'Forward oligo' = csvforward
                 )
+              revreport <<- rbind(csvoutputr, csvoutpute)
+              row.names(revreport) <<- revreport[, 4]
             }
           }
           
-          # PAM sites not found in the 17 nt search space but in the extende --------
+          # PAM sites not found in the 17 nt search space but in the extended --------
           
           else if (length(allpammdl) + length(allpammrl) > 0) {
             csvoutpute <- NULL
@@ -3442,9 +3740,11 @@ server <- function(input, output, session)
               if (input$extended == 1) {
                 enable("downloadcsv")
                 enable("downloadxlsx")
+                enable("report")
               } else {
                 disable("downloadcsv")
                 disable("downloadxlsx")
+                disable("report")
               }
             })
             summarye <- summary
@@ -3510,11 +3810,13 @@ server <- function(input, output, session)
                 ""
               )
             confinedlist <- NULL
-            csvoutputr <- NULL
+            csvoutputr <<- NULL
             csvoutputrc <- NULL
             extendedlist <-
               list('Extended search space' = csvoutpute,
                    'Forward oligo' = csvforward)
+            revreport <<- csvoutpute
+            row.names(revreport) <<- revreport[, 4]
             
             # No PAM sites were found even in the extended search space ---------------
             
@@ -3569,13 +3871,14 @@ server <- function(input, output, session)
             showElement("nextstep")
             hideElement("downloadcsv")
             hideElement("downloadxlsx")
+            hideElement("report")
           }
           
           # Extended search space option is chosen ----------------------------------
           
           observe({
             if ((input$extended == 1) & (nchar(targetseq()) == 403)) {
-            #if (input$extended == 1) {
+              #if (input$extended == 1) {
               enable("inp_ext")
               enableActionButton("inp_apply", session)
               
@@ -3700,6 +4003,8 @@ server <- function(input, output, session)
                   }, sanitize.text.function = function(x)
                     x)
                   rvo$data <- extendedlist
+                  revreport <<- rbind(csvoutputr, csvoutpute)
+                  row.names(revreport) <<- revreport[, 4]
                   csvoutputec <- csvoutpute
                   csvoutputec[nrow(csvoutputec) + 1,] <-
                     c("", "", "", "", "", "", "", "")
@@ -3723,12 +4028,14 @@ server <- function(input, output, session)
                     )
                   output$nextstep <-
                     renderText({
-                      paste0('<br>',
-                             '<br>',
-                             "Next step: Order oligos",
-                             '<br>',
-                             '<br>',
-                             '<br>')
+                      paste0(
+                        '<br>',
+                        '<br>',
+                        "We suggest aligning the oligos to the target before ordering them.",
+                        '<br>',
+                        '<br>',
+                        '<br>'
+                      )
                     })
                   showElement("nextstep")
                   hideElement("mtwocomment")
@@ -3767,9 +4074,12 @@ server <- function(input, output, session)
                 if (length(allpammd) + length(allpammr) + length(allpammdl) + length(allpammrl) > 0) {
                   showElement("downloadcsv")
                   showElement("downloadxlsx")
+                  showElement("report")
                   confinedlist <-
                     list('17 nt search space' = csvoutputr,
                          'Forward oligo' = csvforward)
+                  revreport <<- csvoutputr
+                  row.names(revreport) <<- revreport[, 4]
                   isolate({
                     rvo$data <- confinedlist
                     rvoc$data <- csvoutputrc
@@ -3778,7 +4088,7 @@ server <- function(input, output, session)
                         paste0(
                           '<br>',
                           '<br>',
-                          "Next step: Order oligos",
+                          "We suggest aligning the oligos to the target before ordering them.",
                           '<br>',
                           '<br>',
                           '<br>'
@@ -3792,6 +4102,7 @@ server <- function(input, output, session)
                 } else {
                   hideElement("downloadcsv")
                   hideElement("downloadxlsx")
+                  hideElement("report")
                 }
               }
               
@@ -3827,16 +4138,20 @@ server <- function(input, output, session)
                   confinedlist <-
                     list('17 nt search space' = csvoutputr,
                          'Forward oligo' = csvforward)
+                  revreport <<- csvoutputr
+                  row.names(revreport) <<- revreport[, 4]
                   rvo$data <- confinedlist
                   rvoc$data <- csvoutputrc
                   output$nextstep <-
                     renderText({
-                      paste0('<br>',
-                             '<br>',
-                             "Next step: Order oligos",
-                             '<br>',
-                             '<br>',
-                             '<br>')
+                      paste0(
+                        '<br>',
+                        '<br>',
+                        "We suggest aligning the oligos to the target before ordering them.",
+                        '<br>',
+                        '<br>',
+                        '<br>'
+                      )
                     })
                   showElement("nextstep")
                 })
@@ -3902,6 +4217,7 @@ server <- function(input, output, session)
           })
           hideElement("downloadcsv")
           hideElement("downloadxlsx")
+          hideElement("report")
           if ((input$extended == 1) &
               (nchar(targetseq()) == 403)) {
             ntsstop <- aroundstop()(targetseq())
@@ -4006,22 +4322,60 @@ server <- function(input, output, session)
             })
           }
         }
+        output$downloadcsv <- downloadHandler(
+          filename = paste0("M_", rvg$data, ".csv"),
+          content = function(file) {
+            write.csv(rvoc$data, file, row.names = FALSE)
+          }
+        )
+        output$downloadxlsx <- downloadHandler(
+          filename = paste0("M_", rvg$data, ".xlsx"),
+          content = function(file) {
+            tempFile <- tempfile(fileext = ".xlsx")
+            write_xlsx(rvo$data, tempFile)
+            file.rename(tempFile, file)
+          }
+        )
       }, ignoreInit = TRUE)
-      output$downloadcsv <- downloadHandler(
-        filename = paste0("M_", rvg$data, ".csv"),
-        content = function(file) {
-          write.csv(rvoc$data, file, row.names = FALSE)
-        }
-      )
-      output$downloadxlsx <- downloadHandler(
-        filename = paste0("M_", rvg$data, ".xlsx"),
-        content = function(file) {
-          tempFile <- tempfile(fileext = ".xlsx")
-          write_xlsx(rvo$data, tempFile)
-          file.rename(tempFile, file)
-        }
-      )
+      
     }
+    #wraptarget <-
+    #wrapfw <- str_break(forwardoligo())
+    #wraptarget<- cat(str_break(targetseq()), sep = '\n')
+    # output$report <- downloadHandler(
+    #   filename = function() {
+    #     'Mammalian_PCR_tagging_report.pdf'
+    #   },
+    #   content = function(file) {
+    #     src <- normalizePath('report.Rmd')
+    #
+    #     # temporarily switch to the temp dir, in case you do not have write
+    #     # permission to the current working directory
+    #     owd <- setwd(tempdir())
+    #     on.exit(setwd(owd))
+    #     file.copy(src, 'report.Rmd', overwrite = TRUE)
+    #     library(rmarkdown)
+    #     params <- list(
+    #       a = input$inputmethod,
+    #       b = str_break(targetseq()),
+    #       c = input$genename,
+    #       d = input$inp_cpf,
+    #       e = input$threeha,
+    #       f = input$fiveha,
+    #       g = input$phospho,
+    #       h = str_break(forwardoligo()),
+    #       i = nchar(forwardoligo()),
+    #       j = revreport[, c(1,2,3)],
+    #       k = input$extended,
+    #       l = rvei$data,
+    #       m = nrow(csvoutputr)
+    #       )
+    #     out <- rmarkdown::render('report.Rmd',
+    #                              params = params,
+    #                              envir = new.env(parent = globalenv()))
+    #     file.rename(out, file)
+    #   }
+    # )
     observe({
       if (input$compute == 0) {
         isolate({
